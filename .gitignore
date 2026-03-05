@@ -1,0 +1,24 @@
+# --- .NET / Visual Studio ---
+[Bb]in/
+[Oo]bj/
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+
+# --- Node.js / Vue / Vite ---
+node_modules/
+dist/
+dist-ssr/
+*.local
+.eslintcache
+.stylelintcache
+node_modules.bak/
+package-lock.json
+pnpm-lock.yaml
+
+# --- OS / IDE ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
