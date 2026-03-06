@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { Plus, Pencil, Trash2, Cable, Settings2, Cpu, Network, MoreHorizontal, ChevronRight } from 'lucide-vue-next'
 
 // shadcn-ui components
@@ -303,13 +303,13 @@ const deviceTypeOptions = ['FlowMeter']
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead class="w-[50px]">ID</TableHead>
-                  <TableHead>名称</TableHead>
-                  <TableHead>IP 地址</TableHead>
-                  <TableHead class="w-[80px]">端口</TableHead>
+                  <TableHead class="w-[60px]">ID</TableHead>
+                  <TableHead class="min-w-[150px]">名称</TableHead>
+                  <TableHead class="w-[140px]">IP 地址</TableHead>
+                  <TableHead class="w-[100px]">端口</TableHead>
                   <TableHead class="w-[100px]">子设备数</TableHead>
-                  <TableHead class="w-[80px]">状态</TableHead>
-                  <TableHead>备注</TableHead>
+                  <TableHead class="w-[100x]">状态</TableHead>
+                  <TableHead class="min-w-[150px]">备注</TableHead>
                   <TableHead class="w-[70px] text-right">操作</TableHead>
                 </TableRow>
               </TableHeader>
@@ -373,14 +373,14 @@ const deviceTypeOptions = ['FlowMeter']
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead class="w-[30px]"></TableHead>
-                  <TableHead class="w-[50px]">ID</TableHead>
-                  <TableHead>名称</TableHead>
-                  <TableHead>所属集成设备</TableHead>
-                  <TableHead class="w-[80px]">从站</TableHead>
+                  <TableHead class="w-[40px]"></TableHead>
+                  <TableHead class="w-[60px]">ID</TableHead>
+                  <TableHead class="min-w-[120px]">名称</TableHead>
+                  <TableHead class="min-w-[140px]">所属集成设备</TableHead>
+                  <TableHead class="w-[70px]">从站</TableHead>
                   <TableHead class="w-[90px]">波特率</TableHead>
                   <TableHead class="w-[100px]">读取模式</TableHead>
-                  <TableHead class="w-[80px]">起始REG</TableHead>
+                  <TableHead class="w-[90px]">起始寄存器</TableHead>
                   <TableHead class="w-[70px]">数量</TableHead>
                   <TableHead class="w-[80px]">状态</TableHead>
                   <TableHead class="w-[70px] text-right">操作</TableHead>
@@ -450,13 +450,13 @@ const deviceTypeOptions = ['FlowMeter']
                           <TableHeader>
                             <TableRow>
                               <TableHead class="h-8 text-xs">值名称</TableHead>
-                              <TableHead class="h-8 text-xs w-[80px]">偏移</TableHead>
-                              <TableHead class="h-8 text-xs w-[80px]">数据类型</TableHead>
-                              <TableHead class="h-8 text-xs w-[80px]">缩放</TableHead>
+                              <TableHead class="h-8 text-xs w-[100px]">偏移</TableHead>
+                              <TableHead class="h-8 text-xs w-[100px]">数据类型</TableHead>
+                              <TableHead class="h-8 text-xs w-[100px]">缩放</TableHead>
                               <TableHead class="h-8 text-xs">PLC 标签地址</TableHead>
-                              <TableHead class="h-8 text-xs w-[60px]">单位</TableHead>
-                              <TableHead class="h-8 text-xs w-[60px]">启用</TableHead>
-                              <TableHead class="h-8 text-xs w-[80px] text-right">操作</TableHead>
+                              <TableHead class="h-8 text-xs w-[100px]">单位</TableHead>
+                              <TableHead class="h-8 text-xs w-[100px]">启用</TableHead>
+                              <TableHead class="h-8 text-xs w-[100px] text-right">操作</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -554,119 +554,129 @@ const deviceTypeOptions = ['FlowMeter']
           <DialogTitle>{{ devDialogMode === 'add' ? '新建子设备' : '编辑子设备' }}</DialogTitle>
           <DialogDescription>配置 Modbus RTU 通讯参数</DialogDescription>
         </DialogHeader>
-        <div class="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
+        <div class="grid gap-6 py-4 max-h-[70vh] overflow-y-auto pr-2 px-1">
           <!-- 基本信息 -->
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label class="text-right">名称</Label>
-            <Input v-model="devForm.name" class="col-span-3" placeholder="如：流量计 #1" />
-          </div>
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label class="text-right">所属集成设备</Label>
-            <Select v-model="devForm.integratorId" class="col-span-3">
-              <SelectTrigger class="col-span-3">
-                <SelectValue placeholder="选择集成设备" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem v-for="ig in integrators" :key="ig.id" :value="ig.id">
-                  {{ ig.name }} ({{ ig.ipAddress }})
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label class="text-right">设备类型</Label>
-            <Select v-model="devForm.deviceType" class="col-span-3">
-              <SelectTrigger class="col-span-3">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem v-for="dt in deviceTypeOptions" :key="dt" :value="dt">{{ dt }}</SelectItem>
-              </SelectContent>
-            </Select>
+          <div class="space-y-4">
+            <h4 class="text-sm font-medium leading-none flex items-center gap-2">
+              <Cpu class="w-4 h-4 text-blue-500" /> 基本信息
+            </h4>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="space-y-2">
+                <Label for="name">设备名称</Label>
+                <Input id="name" v-model="devForm.name" placeholder="如：流量计 #1" />
+              </div>
+              <div class="space-y-2">
+                <Label for="integrator">所属集成设备</Label>
+                <Select v-model="devForm.integratorId">
+                  <SelectTrigger id="integrator">
+                    <SelectValue placeholder="选择控制器" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem v-for="ig in integrators" :key="ig.id" :value="ig.id">
+                      {{ ig.name }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div class="space-y-2">
+                <Label for="deviceType">设备类型</Label>
+                <Select v-model="devForm.deviceType">
+                  <SelectTrigger id="deviceType">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem v-for="dt in deviceTypeOptions" :key="dt" :value="dt">{{ dt }}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div class="space-y-2">
+                <Label for="remark">备注</Label>
+                <Input id="remark" v-model="devForm.remark" placeholder="可选" />
+              </div>
+            </div>
           </div>
 
           <!-- Modbus 参数 -->
-          <div class="col-span-4 mt-2 mb-1">
-            <p class="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <Settings2 class="w-3.5 h-3.5" /> Modbus 通讯参数
-            </p>
+          <div class="space-y-4">
+            <h4 class="text-sm font-medium leading-none flex items-center gap-2">
+              <Settings2 class="w-4 h-4 text-blue-500" /> Modbus 通讯参数
+            </h4>
+            <div class="grid grid-cols-2 gap-4 p-4 rounded-lg bg-muted/30 border border-muted">
+              <div class="space-y-2">
+                <Label for="slaveAddress">从站地址 (1-247)</Label>
+                <Input id="slaveAddress" v-model.number="devForm.slaveAddress" type="number" min="1" max="247" />
+              </div>
+              <div class="space-y-2">
+                <Label for="baudRate">波特率 (bps)</Label>
+                <Select v-model="devForm.baudRate">
+                  <SelectTrigger id="baudRate">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem v-for="br in baudRateOptions" :key="br" :value="br">{{ br }}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div class="space-y-2">
+                <Label for="dataBits">数据位</Label>
+                <Select v-model="devForm.dataBits">
+                  <SelectTrigger id="dataBits">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem v-for="db in dataBitsOptions" :key="db" :value="db">{{ db }}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div class="space-y-2">
+                <Label for="stopBits">停止位</Label>
+                <Select v-model="devForm.stopBits">
+                  <SelectTrigger id="stopBits">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem v-for="sb in stopBitsOptions" :key="sb" :value="sb">{{ sb }}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div class="space-y-2">
+                <Label for="parity">校验位</Label>
+                <Select v-model="devForm.parity">
+                  <SelectTrigger id="parity">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem v-for="p in parityOptions" :key="p" :value="p">{{ p }}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div class="space-y-2">
+                <Label for="readMode">读取模式</Label>
+                <Select v-model="devForm.readMode">
+                  <SelectTrigger id="readMode">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem v-for="rm in readModeOptions" :key="rm" :value="rm">
+                      {{ rm === 'HoldingRegisters' ? '保持寄存器 (03)' : '输入寄存器 (04)' }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div class="space-y-2">
+                <Label for="startRegister">起始寄存器地址</Label>
+                <Input id="startRegister" v-model.number="devForm.startRegister" type="number" min="0" />
+              </div>
+              <div class="space-y-2">
+                <Label for="registerCount">寄存器读取数量</Label>
+                <Input id="registerCount" v-model.number="devForm.registerCount" type="number" min="1" />
+              </div>
+            </div>
           </div>
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label class="text-right">从站地址</Label>
-            <Input v-model.number="devForm.slaveAddress" type="number" class="col-span-3" min="1" max="247" />
-          </div>
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label class="text-right">波特率</Label>
-            <Select v-model="devForm.baudRate" class="col-span-3">
-              <SelectTrigger class="col-span-3">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem v-for="br in baudRateOptions" :key="br" :value="br">{{ br }}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label class="text-right">数据位</Label>
-            <Select v-model="devForm.dataBits" class="col-span-3">
-              <SelectTrigger class="col-span-3">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem v-for="db in dataBitsOptions" :key="db" :value="db">{{ db }}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label class="text-right">停止位</Label>
-            <Select v-model="devForm.stopBits" class="col-span-3">
-              <SelectTrigger class="col-span-3">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem v-for="sb in stopBitsOptions" :key="sb" :value="sb">{{ sb }}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label class="text-right">校验</Label>
-            <Select v-model="devForm.parity" class="col-span-3">
-              <SelectTrigger class="col-span-3">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem v-for="p in parityOptions" :key="p" :value="p">{{ p }}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label class="text-right">读取模式</Label>
-            <Select v-model="devForm.readMode" class="col-span-3">
-              <SelectTrigger class="col-span-3">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem v-for="rm in readModeOptions" :key="rm" :value="rm">
-                  {{ rm === 'HoldingRegisters' ? '保持寄存器 (03)' : '输入寄存器 (04)' }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label class="text-right">起始寄存器</Label>
-            <Input v-model.number="devForm.startRegister" type="number" class="col-span-3" min="0" />
-          </div>
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label class="text-right">寄存器数量</Label>
-            <Input v-model.number="devForm.registerCount" type="number" class="col-span-3" min="1" />
-          </div>
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label class="text-right">备注</Label>
-            <Input v-model="devForm.remark" class="col-span-3" placeholder="可选" />
-          </div>
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label class="text-right">启用</Label>
-            <Switch :checked="devForm.isEnabled" @update:checked="devForm.isEnabled = $event" />
+
+          <div class="flex items-center gap-2 px-1">
+            <Switch id="isEnabled" :checked="devForm.isEnabled" @update:checked="devForm.isEnabled = $event" />
+            <Label for="isEnabled" class="cursor-pointer">启用该设备</Label>
           </div>
         </div>
         <DialogFooter>
