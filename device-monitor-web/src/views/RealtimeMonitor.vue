@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import DeviceCard from '@/components/DeviceCard.vue'
+import DeviceCardFlowMeter from '@/components/DeviceCardFlowMeter.vue'
 
 type DeviceStatus = 'online' | 'offline' | 'warning' | 'unknown'
-type DeviceType = 'flowmeter' | 'robot' | 'camera' | 'conveyor' | 'plc' | 'environment' | 'default'
+type DeviceType = 'flowmeter'
 
 type DeviceItem = {
   id: string
@@ -16,16 +16,10 @@ type DeviceItem = {
 }
 
 const devices = ref<DeviceItem[]>([
-  { id: 'DEV-001', title: '焊接机器人 #1', description: '焊接工位 A - 机械臂', status: 'online', deviceType: 'robot' },
-  { id: 'DEV-002', title: '焊接机器人 #2', description: '焊接工位 B - 机械臂', status: 'online', deviceType: 'robot' },
-  { id: 'DEV-003', title: '视觉检测仪 #1', description: '质检工位 - 相机阵列', status: 'warning', deviceType: 'camera' },
-  { id: 'DEV-004', title: '传送带 A', description: '上料段 - 主传送线', status: 'online', deviceType: 'conveyor' },
-  { id: 'DEV-005', title: '传送带 B', description: '下料段 - 出货传送线', status: 'offline', deviceType: 'conveyor' },
-  { id: 'DEV-006', title: 'PLC 控制器 #1', description: '主控 PLC - S7-1500', status: 'online', deviceType: 'plc' },
-  { id: 'DEV-007', title: 'PLC 控制器 #2', description: '辅控 PLC - S7-300', status: 'online', deviceType: 'plc' },
-  { id: 'DEV-008', title: '环境传感器', description: '车间温湿度监测', status: 'unknown', deviceType: 'environment' },
-  { id: 'DEV-009', title: '流量表 #1', description: '回路 A - 冷却液监测', status: 'online', deviceType: 'flowmeter', temperature: 32.4, flow: 68.2 },
-  { id: 'DEV-010', title: '流量表 #2', description: '回路 B - 生产线供液', status: 'online', deviceType: 'flowmeter', temperature: 28.9, flow: 74.6 },
+  { id: 'FM-001', title: '流量表 #1 (冷却回路)', description: '车间 A - 1号设备冷却液监测', status: 'online', deviceType: 'flowmeter', temperature: 32.4, flow: 68.2 },
+  { id: 'FM-002', title: '流量表 #2 (清洗回路)', description: '车间 A - 超声波清洗机供液', status: 'online', deviceType: 'flowmeter', temperature: 28.9, flow: 74.6 },
+  { id: 'FM-003', title: '流量表 #3 (备用回路)', description: '储备供液回路', status: 'unknown', deviceType: 'flowmeter', temperature: 22.0, flow: 0.0 },
+  { id: 'FM-004', title: '流量表 #4 (冷却回路 B)', description: '车间 B - 2号设备冷却液监测', status: 'online', deviceType: 'flowmeter', temperature: 35.1, flow: 81.3 },
 ])
 
 const statusSummary = computed(() => {
@@ -93,14 +87,13 @@ onBeforeUnmount(() => {
 
     <!-- 设备卡片网格 -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-      <DeviceCard
+      <DeviceCardFlowMeter
         v-for="device in devices"
         :key="device.id"
         :title="device.title"
         :description="device.description"
         :status="device.status"
         :device-id="device.id"
-        :device-type="device.deviceType"
         :temperature="device.temperature"
         :flow="device.flow"
       />
