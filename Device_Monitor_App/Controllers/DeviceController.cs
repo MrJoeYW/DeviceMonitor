@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 namespace Device_Monitor_App.Controllers;
 
 /// <summary>
-/// 设备控制器 —— 作为 WebView2 JS Bridge 与前端的通信入口
+/// 设备控制器 —— 管理 Modbus 子设备
 /// </summary>
 public class DeviceController
 {
@@ -18,37 +18,19 @@ public class DeviceController
         _logger = logger;
     }
 
-    /// <summary>获取所有设备（供 JS 调用）</summary>
-    public IEnumerable<Device> GetDevices()
+    public IEnumerable<Device> GetAll() => _deviceService.GetAll();
+
+    public IEnumerable<Device> GetByIntegratorId(int integratorId) => _deviceService.GetByIntegratorId(integratorId);
+
+    public Device? GetById(int id) => _deviceService.GetById(id);
+
+    public int Add(Device device)
     {
-        _logger.LogDebug("前端请求: 获取设备列表");
-        return _deviceService.GetAllDevices();
+        _logger.LogInformation("请求新增设备: {Name}", device.Name);
+        return _deviceService.Add(device);
     }
 
-    /// <summary>添加设备（供 JS 调用）</summary>
-    public int AddDevice(string name, string ipAddress, string deviceType, string remark = "")
-    {
-        _logger.LogInformation("前端请求: 添加设备 {Name}", name);
-        var device = new Device
-        {
-            Name = name,
-            IpAddress = ipAddress,
-            DeviceType = deviceType,
-            Remark = remark
-        };
-        return _deviceService.AddDevice(device);
-    }
+    public bool Update(Device device) => _deviceService.Update(device);
 
-    /// <summary>删除设备（供 JS 调用）</summary>
-    public bool DeleteDevice(int id)
-    {
-        _logger.LogInformation("前端请求: 删除设备 ID={Id}", id);
-        return _deviceService.DeleteDevice(id);
-    }
-
-    /// <summary>更新设备在线状态</summary>
-    public void UpdateOnlineStatus(int id, bool isOnline)
-    {
-        _deviceService.SetDeviceOnlineStatus(id, isOnline);
-    }
+    public bool Delete(int id) => _deviceService.Delete(id);
 }

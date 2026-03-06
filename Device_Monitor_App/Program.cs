@@ -18,7 +18,7 @@ static class Program
     [STAThread]
     static void Main()
     {
-        // 初始化 NLog（读取 nlog.config）
+        // 初始化 NLog
         var logger = LogManager.Setup()
             .LoadConfigurationFromFile("nlog.config")
             .GetCurrentClassLogger();
@@ -29,7 +29,6 @@ static class Program
         {
             ApplicationConfiguration.Initialize();
 
-            // 构建 DI 容器
             var services = new ServiceCollection();
             ConfigureServices(services);
 
@@ -37,8 +36,10 @@ static class Program
 
             // 初始化数据库表
             var dbContext = serviceProvider.GetRequiredService<DatabaseContext>();
+            dbContext.EnsureTable<Integrator>();
             dbContext.EnsureTable<Device>();
-            logger.Info("数据库初始化完成");
+            dbContext.EnsureTable<DeviceTagMapping>();
+            logger.Info("数据库初始化完成（Integrator / Device / DeviceTagMapping）");
 
             // 启动主窗体
             var mainForm = serviceProvider.GetRequiredService<FormMain>();
@@ -58,15 +59,13 @@ static class Program
 
     private static void ConfigureServices(IServiceCollection services)
     {
-        // 数据库路径（放在程序目录下的 data 文件夹）
+        // 数据库
         var dbFolder = Path.Combine(AppContext.BaseDirectory, "data");
         Directory.CreateDirectory(dbFolder);
         var dbPath = Path.Combine(dbFolder, "device_monitor.db");
-
-        // 基础设施
         services.AddSingleton(new DatabaseContext(dbPath));
 
-        // 日志（NLog 接管 ILogger<T>）
+        // 日志
         services.AddLogging(logging =>
         {
             logging.ClearProviders();
@@ -75,13 +74,19 @@ static class Program
         });
 
         // DAO 层
-        services.AddScoped<IDeviceDao, DeviceDao>();
+        services.AddSingleton<IIntegratorDao, IntegratorDao>();
+        services.AddSingleton<IDeviceDao, DeviceDao>();
+        services.AddSingleton<IDeviceTagMappingDao, DeviceTagMappingDao>();
 
         // Service 层
-        services.AddScoped<IDeviceService, DeviceService>();
+        services.AddSingleton<IIntegratorService, IntegratorService>();
+        services.AddSingleton<IDeviceService, DeviceService>();
+        services.AddSingleton<IDeviceTagMappingService, DeviceTagMappingService>();
 
         // Controller 层
-        services.AddTransient<DeviceController>();
+        services.AddSingleton<IntegratorController>();
+        services.AddSingleton<DeviceController>();
+        services.AddSingleton<DeviceTagMappingController>();
 
         // 窗体
         services.AddTransient<FormMain>();
