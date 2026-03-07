@@ -9,7 +9,7 @@ import {
   CardFooter,
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { SingularityBackground } from '@/components/ui/bg-singularity'
+import { StarsBackground } from '@/components/ui/bg-stars'
 
 interface Props {
   title?: string
@@ -43,8 +43,8 @@ const formatValue = (value: number, digits = 1) => Number.isFinite(value) ? valu
 
 <template>
   <Card class="group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-sky-500/40 cursor-pointer bg-card/60 backdrop-blur-md min-h-[16rem]">
-    <!-- 流体动画背景 -->
-    <SingularityBackground class="absolute inset-0 z-0 pointer-events-none opacity-60" />
+    <!-- 星空动画背景 -->
+    <StarsBackground class="absolute inset-0 z-0 pointer-events-none opacity-60" />
     
     <CardHeader class="relative z-10 pb-2">
       <div class="flex items-start justify-between gap-2">

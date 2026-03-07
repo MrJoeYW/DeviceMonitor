@@ -19,11 +19,11 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   hue: 0,
-  saturation: 1,
-  brightness: 1,
-  speed: 1,
-  mouseSensitivity: 0.5,
-  damping: 1,
+  saturation: 0,
+  brightness: 0.5,
+  speed: 2,
+  mouseSensitivity: 0,
+  damping: 0,
 });
 
 const shader = `
