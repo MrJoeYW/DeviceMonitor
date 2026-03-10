@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import DeviceCardFlowMeter from '@/components/DeviceCardFlowMeter.vue'
+import DeviceCardPowerMeter from '@/components/DeviceCardPowerMeter.vue'
 
 type DeviceStatus = 'online' | 'offline' | 'warning' | 'unknown'
-type DeviceType = 'flowmeter'
+type DeviceType = 'flowmeter' | 'powermeter'
 
 type DeviceItem = {
   id: string
@@ -18,6 +19,7 @@ type DeviceItem = {
 const devices = ref<DeviceItem[]>([
   { id: 'FM-001', title: '流量表 #1 (冷却回路)', description: '车间 A - 1号设备冷却液监测', status: 'online', deviceType: 'flowmeter', temperature: 32.4, flow: 68.2 },
   { id: 'FM-002', title: '流量表 #2 (清洗回路)', description: '车间 A - 超声波清洗机供液', status: 'online', deviceType: 'flowmeter', temperature: 28.9, flow: 74.6 },
+  { id: 'PM-001', title: '主电能表 (车间总进线)', description: '车间 A - 进线柜电能监测', status: 'online', deviceType: 'powermeter' },
   { id: 'FM-003', title: '流量表 #3 (备用回路)', description: '储备供液回路', status: 'unknown', deviceType: 'flowmeter', temperature: 22.0, flow: 0.0 },
   { id: 'FM-004', title: '流量表 #4 (冷却回路 B)', description: '车间 B - 2号设备冷却液监测', status: 'online', deviceType: 'flowmeter', temperature: 35.1, flow: 81.3 },
 ])
@@ -87,16 +89,24 @@ onBeforeUnmount(() => {
 
     <!-- 设备卡片网格 -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-      <DeviceCardFlowMeter
-        v-for="device in devices"
-        :key="device.id"
-        :title="device.title"
-        :description="device.description"
-        :status="device.status"
-        :device-id="device.id"
-        :temperature="device.temperature"
-        :flow="device.flow"
-      />
+      <template v-for="device in devices" :key="device.id">
+        <DeviceCardFlowMeter
+          v-if="device.deviceType === 'flowmeter'"
+          :title="device.title"
+          :description="device.description"
+          :status="device.status"
+          :device-id="device.id"
+          :temperature="device.temperature"
+          :flow="device.flow"
+        />
+        <DeviceCardPowerMeter
+          v-else-if="device.deviceType === 'powermeter'"
+          :title="device.title"
+          :description="device.description"
+          :status="device.status"
+          :device-id="device.id"
+        />
+      </template>
     </div>
   </div>
 </template>
