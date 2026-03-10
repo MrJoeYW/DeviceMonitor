@@ -31,5 +31,13 @@
     <EmbeddedResource Remove="Form1.resx" />
     <None Remove="Form1.resx" />
   </ItemGroup>
+  <ItemGroup>
+    <Reference Include="SkyTool">
+      <HintPath>bin\Debug\net10.0-windows7.0\SkyTool.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Infrastructure\PLC\" />
+  </ItemGroup>
 
 </Project>
