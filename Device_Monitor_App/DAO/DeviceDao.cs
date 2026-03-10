@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 namespace Device_Monitor_App.DAO;
 
 /// <summary>
-/// 设备数据访问对象实现
+/// 设备 DAO 实现
 /// </summary>
 public class DeviceDao : IDeviceDao
 {
@@ -38,7 +38,6 @@ public class DeviceDao : IDeviceDao
 
     public int Insert(Device device)
     {
-        device.CreatedAt = DateTime.Now;
         _db.Connection.Insert(device);
         _logger.LogInformation("新增设备: {Name}, ID={Id}, IntegratorId={IntId}", device.Name, device.Id, device.IntegratorId);
         return device.Id;
@@ -63,7 +62,7 @@ public class DeviceDao : IDeviceDao
         var devices = GetByIntegratorId(integratorId).ToList();
         foreach (var d in devices)
             _db.Connection.Delete<Device>(d.Id);
-        _logger.LogInformation("删除集成设备 {IntId} 下所有子设备, 共{Count}台", integratorId, devices.Count);
+        _logger.LogInformation("删除网关 {IntId} 下所有子设备, 共{Count}台", integratorId, devices.Count);
         return devices.Count;
     }
 }

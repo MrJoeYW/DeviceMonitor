@@ -25,8 +25,8 @@ public class DeviceTagMappingService : IDeviceTagMappingService
     {
         if (string.IsNullOrWhiteSpace(mapping.ValueName))
             throw new ArgumentException("值名称不能为空");
-        if (string.IsNullOrWhiteSpace(mapping.PlcTagAddress))
-            throw new ArgumentException("PLC 标签地址不能为空");
+        if (mapping.PlcOffset < 0)
+            throw new ArgumentException("PLC 偏移量不能为负数");
         if (mapping.DeviceId <= 0)
             throw new ArgumentException("必须指定所属设备");
 

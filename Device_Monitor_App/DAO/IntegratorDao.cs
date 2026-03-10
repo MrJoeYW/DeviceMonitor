@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 namespace Device_Monitor_App.DAO;
 
 /// <summary>
-/// 集成设备 DAO 实现
+/// 网关 DAO 实现
 /// </summary>
 public class IntegratorDao : IIntegratorDao
 {
@@ -31,23 +31,22 @@ public class IntegratorDao : IIntegratorDao
 
     public int Insert(Integrator integrator)
     {
-        integrator.CreatedAt = DateTime.Now;
         _db.Connection.Insert(integrator);
-        _logger.LogInformation("新增集成设备: {Name}, ID={Id}", integrator.Name, integrator.Id);
+        _logger.LogInformation("新增网关: {Name}, ID={Id}", integrator.Name, integrator.Id);
         return integrator.Id;
     }
 
     public int Update(Integrator integrator)
     {
         var result = _db.Connection.Update(integrator);
-        _logger.LogInformation("更新集成设备: {Name}, ID={Id}", integrator.Name, integrator.Id);
+        _logger.LogInformation("更新网关: {Name}, ID={Id}", integrator.Name, integrator.Id);
         return result;
     }
 
     public int Delete(int id)
     {
         var result = _db.Connection.Delete<Integrator>(id);
-        _logger.LogInformation("删除集成设备 ID={Id}", id);
+        _logger.LogInformation("删除网关 ID={Id}", id);
         return result;
     }
 }

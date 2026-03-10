@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 namespace Device_Monitor_App.Models;
 
 /// <summary>
-/// 设备读取值 → PLC 标签地址映射表
+/// 标签映射表 —— 将设备 Modbus 读回的字节偏移解析为实际值，并映射到网关 PLC 数组的偏移位置
 /// </summary>
 [Table("DeviceTagMapping")]
 public class DeviceTagMapping
@@ -23,28 +23,22 @@ public class DeviceTagMapping
     [JsonPropertyName("valueName")]
     public string ValueName { get; set; } = string.Empty;
 
-    /// <summary>相对于 StartRegister 的寄存器偏移</summary>
+    /// <summary>Modbus 读回数组中的字节偏移</summary>
     [JsonPropertyName("registerOffset")]
-    public int RegisterOffset { get; set; }
+    public int RegisterOffset { get; set; } = 0;
 
-    /// <summary>数据类型（Float / Int16 / UInt16 / Int32 等）</summary>
+    /// <summary>数据类型（Int16, UInt16, Int32, UInt32, Float32 等）</summary>
     [MaxLength(20)]
     [JsonPropertyName("dataType")]
-    public string DataType { get; set; } = "Float";
+    public string DataType { get; set; } = "Float32";
 
-    /// <summary>缩放系数（读取的原始值 × Scale = 实际值）</summary>
+    /// <summary>缩放系数（原始值 × Scale = 实际值）</summary>
     [JsonPropertyName("scale")]
     public double Scale { get; set; } = 1.0;
 
-    /// <summary>PLC 标签地址（如 DB100.DBD10）</summary>
-    [NotNull, MaxLength(100)]
-    [JsonPropertyName("plcTagAddress")]
-    public string PlcTagAddress { get; set; } = string.Empty;
-
-    /// <summary>单位（℃, L/min 等）</summary>
-    [MaxLength(20)]
-    [JsonPropertyName("unit")]
-    public string Unit { get; set; } = string.Empty;
+    /// <summary>【核心】在该网关 PLC 数组中的偏移量（0, 1, 2...）</summary>
+    [JsonPropertyName("plcOffset")]
+    public int PlcOffset { get; set; } = 0;
 
     /// <summary>是否启用</summary>
     [JsonPropertyName("isEnabled")]

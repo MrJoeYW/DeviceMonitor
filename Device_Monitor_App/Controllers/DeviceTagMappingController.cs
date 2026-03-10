@@ -22,7 +22,7 @@ public class DeviceTagMappingController
 
     public int Add(DeviceTagMapping mapping)
     {
-        _logger.LogInformation("请求新增标签映射: {ValueName} → {PlcTag}", mapping.ValueName, mapping.PlcTagAddress);
+        _logger.LogInformation("请求新增标签映射: {ValueName} → PlcOffset={PlcOffset}", mapping.ValueName, mapping.PlcOffset);
         return _service.Add(mapping);
     }
 

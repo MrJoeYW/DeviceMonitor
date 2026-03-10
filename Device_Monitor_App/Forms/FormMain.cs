@@ -132,7 +132,7 @@ public partial class FormMain : Form
     {
         var obj = payload.Deserialize<Integrator>(_jsonOpts)
                   ?? throw new ArgumentException("集成设备数据无效");
-        return _integratorController.Add(obj.Name, obj.IpAddress, obj.Port, obj.Remark);
+        return _integratorController.Add(obj.Name, obj.IpAddress, obj.Port, obj.PlcBaseAddress, obj.PlcBlockSize);
     }
 
     private bool HandleIntegratorUpdate(JsonNode? payload)

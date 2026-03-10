@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 namespace Device_Monitor_App.Controllers;
 
 /// <summary>
-/// 集成设备控制器
+/// 网关控制器
 /// </summary>
 public class IntegratorController
 {
@@ -22,15 +22,16 @@ public class IntegratorController
 
     public Integrator? GetById(int id) => _service.GetById(id);
 
-    public int Add(string name, string ipAddress, int port, string remark = "")
+    public int Add(string name, string ipAddress, int port, string plcBaseAddress, int plcBlockSize)
     {
-        _logger.LogInformation("请求新增集成设备: {Name} ({Ip}:{Port})", name, ipAddress, port);
+        _logger.LogInformation("请求新增网关: {Name} ({Ip}:{Port}), PLC={Base}+{Size}", name, ipAddress, port, plcBaseAddress, plcBlockSize);
         var integrator = new Integrator
         {
             Name = name,
             IpAddress = ipAddress,
             Port = port,
-            Remark = remark
+            PlcBaseAddress = plcBaseAddress,
+            PlcBlockSize = plcBlockSize
         };
         return _service.Add(integrator);
     }

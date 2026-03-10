@@ -34,8 +34,8 @@ public class DeviceTagMappingDao : IDeviceTagMappingDao
     public int Insert(DeviceTagMapping mapping)
     {
         _db.Connection.Insert(mapping);
-        _logger.LogInformation("新增标签映射: {ValueName} → {PlcTag}, DeviceId={DevId}",
-            mapping.ValueName, mapping.PlcTagAddress, mapping.DeviceId);
+        _logger.LogInformation("新增标签映射: {ValueName} → PlcOffset={PlcOffset}, DeviceId={DevId}",
+            mapping.ValueName, mapping.PlcOffset, mapping.DeviceId);
         return mapping.Id;
     }
 
