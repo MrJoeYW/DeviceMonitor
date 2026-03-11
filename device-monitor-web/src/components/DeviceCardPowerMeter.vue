@@ -35,6 +35,7 @@ const currentStatus = () => statusConfig[props.status]
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const containerRef = ref<HTMLDivElement | null>(null)
+const isHovering = ref(false)
 
 let animationFrameId: number
 let resizeObserver: ResizeObserver | null = null
@@ -50,6 +51,10 @@ const initFuzzyBorder = () => {
   const offscreen = document.createElement('canvas')
   const offCtx = offscreen.getContext('2d', { willReadFrequently: true })
   if (!offCtx) return
+
+  const tempScreen = document.createElement('canvas')
+  const tempCtx = tempScreen.getContext('2d', { willReadFrequently: true })
+  if (!tempCtx) return
   
   let width = 0
   let height = 0
@@ -64,13 +69,15 @@ const initFuzzyBorder = () => {
     canvas.height = height + margin * 2
     offscreen.width = canvas.width
     offscreen.height = canvas.height
+    tempScreen.width = canvas.width
+    tempScreen.height = canvas.height
     
     offCtx.clearRect(0, 0, offscreen.width, offscreen.height)
     
     // To reliably get the theme colors in Canvas without manually parsing HSL strings,
     // we set the fill and stroke styles directly using the var() syntax, which Canvas supports if attached to DOM
     offCtx.fillStyle = '#ffffff'
-    offCtx.strokeStyle = 'rgba(0, 0, 0, 0.2)'
+    offCtx.strokeStyle = 'rgba(147, 112, 219, 0.5)'
     offCtx.lineWidth = 1
     offCtx.shadowBlur = 0
     
@@ -101,9 +108,12 @@ const initFuzzyBorder = () => {
   })
   resizeObserver.observe(container)
   
+  const baseIntensity = 0.3
+  const hoverIntensity = 0.8
+  let currentIntensity = baseIntensity
+  
   const fuzzRange = 10 // Reduced amplitude (less horizonal spikes)
-  const intensity = 0.5 // Reduced baseline chance
-  const fps = 24 // Slower frame rate for less erratic boiling
+  const fps = 30 // Slower frame rate for less erratic boiling
 
   const frameDuration = 1000 / fps
   let lastFrameTime = 0
@@ -115,10 +125,30 @@ const initFuzzyBorder = () => {
     
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     
-    // Strictly matching React Bits FuzzyText: Slice horizontally and apply random horizontal shift
+    // Smooth transition between intensities
+    const targetIntensity = isHovering.value ? hoverIntensity : baseIntensity
+    currentIntensity += (targetIntensity - currentIntensity) * 0.1
+    
+    tempCtx.clearRect(0, 0, tempScreen.width, tempScreen.height)
+    
+    // Pass 1: Slice horizontally and apply random horizontal shift (fuzzes vertical lines)
     for (let j = 0; j < canvas.height; j++) {
-      const dx = Math.floor(intensity * (Math.random() - 0.5) * fuzzRange)
-      ctx.drawImage(offscreen, 0, j, canvas.width, 1, dx, j, canvas.width, 1)
+      let dx = 0
+      // 降低20%密集度：大约 80% 的行发生抖动位移
+      if (Math.random() < 0.6) {
+        dx = Math.floor(currentIntensity * (Math.random() - 0.5) * fuzzRange)
+      }
+      tempCtx.drawImage(offscreen, 0, j, canvas.width, 1, dx, j, canvas.width, 1)
+    }
+
+    // Pass 2: Slice vertically and apply random vertical shift (fuzzes horizontal lines)
+    for (let i = 0; i < canvas.width; i++) {
+      let dy = 0
+      // 降低20%密集度：大约 80% 的列发生抖动位移
+      if (Math.random() < 0.6) {
+        dy = Math.floor(currentIntensity * (Math.random() - 0.5) * fuzzRange)
+      }
+      ctx.drawImage(tempScreen, i, 0, 1, canvas.height, i, dy, 1, canvas.height)
     }
   }
   
@@ -144,7 +174,11 @@ onBeforeUnmount(() => {
     ></canvas>
 
     <!-- Card 本体去掉自带背景和边框，完全让底部 Canvas 充当抖动背景和边框 -->
-    <Card class="relative h-full flex flex-col transition-all duration-300 bg-transparent min-h-[16rem] z-10 border-transparent shadow-none">
+    <Card 
+      class="relative h-full flex flex-col transition-all duration-300 bg-transparent min-h-[16rem] z-10 border-transparent shadow-none"
+      @mouseenter="isHovering = true"
+      @mouseleave="isHovering = false"
+    >
       <CardHeader class="relative z-10 pb-2">
         <div class="flex items-start justify-between gap-2">
           <div class="flex-1 min-w-0">
