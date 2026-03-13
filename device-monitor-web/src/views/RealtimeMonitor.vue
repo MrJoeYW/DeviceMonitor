@@ -95,73 +95,76 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="space-y-6 flex flex-col h-full min-h-[calc(100vh-8rem)]">
-    <!-- 页面标题与筛选 -->
-    <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-xl font-semibold tracking-tight">实时监控</h1>
-        <p class="text-sm text-muted-foreground mt-1">实时查看所有设备的运行状态</p>
-      </div>
-      
-      <div class="flex flex-col items-end gap-3">
-        <!-- 状态图例 -->
-        <div class="flex items-center gap-4 text-xs text-muted-foreground">
-          <div class="flex items-center gap-1.5">
-            <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
-            <span>在线 {{ statusSummary.online }}</span>
-          </div>
-          <div class="flex items-center gap-1.5">
-            <div class="w-2 h-2 rounded-full bg-amber-500"></div>
-            <span>告警 {{ statusSummary.warning }}</span>
-          </div>
-          <div class="flex items-center gap-1.5">
-            <div class="w-2 h-2 rounded-full bg-zinc-400"></div>
-            <span>离线 {{ statusSummary.offline }}</span>
-          </div>
-          <div class="flex items-center gap-1.5">
-            <div class="w-2 h-2 rounded-full bg-zinc-600"></div>
-            <span>未知 {{ statusSummary.unknown }}</span>
-          </div>
+  <div class="flex flex-col min-h-full bg-background relative">
+    <!-- 1. 内容主体区域 (带内边距) -->
+    <div class="p-6 space-y-6 flex-1">
+      <!-- 页面标题与筛选 -->
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-xl font-semibold tracking-tight">实时监控</h1>
+          <p class="text-sm text-muted-foreground mt-1">实时查看所有设备的运行状态</p>
         </div>
+        
+        <div class="flex flex-col items-end gap-3">
+          <!-- 状态图例 -->
+          <div class="flex items-center gap-4 text-xs text-muted-foreground">
+            <div class="flex items-center gap-1.5">
+              <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+              <span>在线 {{ statusSummary.online }}</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <div class="w-2 h-2 rounded-full bg-amber-500"></div>
+              <span>告警 {{ statusSummary.warning }}</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <div class="w-2 h-2 rounded-full bg-zinc-400"></div>
+              <span>离线 {{ statusSummary.offline }}</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <div class="w-2 h-2 rounded-full bg-zinc-600"></div>
+              <span>未知 {{ statusSummary.unknown }}</span>
+            </div>
+          </div>
 
-        <!-- 设备类型筛选 -->
-        <Tabs v-model="selectedType" class="w-[300px]">
-          <TabsList class="grid w-full grid-cols-3">
-            <TabsTrigger value="all">全部设备</TabsTrigger>
-            <TabsTrigger value="flowmeter">流量表</TabsTrigger>
-            <TabsTrigger value="powermeter">电能表</TabsTrigger>
-          </TabsList>
-        </Tabs>
+          <!-- 设备类型筛选 -->
+          <Tabs v-model="selectedType" class="w-[300px]">
+            <TabsList class="grid w-full grid-cols-3">
+              <TabsTrigger value="all">全部设备</TabsTrigger>
+              <TabsTrigger value="flowmeter">流量表</TabsTrigger>
+              <TabsTrigger value="powermeter">电能表</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+      </div>
+
+      <!-- 设备卡片网格 (最大 5 列 * 2 行 = 10 个卡片) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 content-start">
+        <template v-for="device in paginatedDevices" :key="device.id">
+          <DeviceCardFlowMeter
+            v-if="device.deviceType === 'flowmeter'"
+            :title="device.title"
+            :description="device.description"
+            :status="device.status"
+            :device-id="device.id"
+            :temperature="device.temperature"
+            :flow="device.flow"
+          />
+          <DeviceCardPowerMeter
+            v-else-if="device.deviceType === 'powermeter'"
+            :title="device.title"
+            :description="device.description"
+            :status="device.status"
+            :device-id="device.id"
+          />
+        </template>
       </div>
     </div>
 
-    <!-- 设备卡片网格 (最大 5 列 * 2 行 = 10 个卡片) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 flex-1 content-start">
-      <template v-for="device in paginatedDevices" :key="device.id">
-        <DeviceCardFlowMeter
-          v-if="device.deviceType === 'flowmeter'"
-          :title="device.title"
-          :description="device.description"
-          :status="device.status"
-          :device-id="device.id"
-          :temperature="device.temperature"
-          :flow="device.flow"
-        />
-        <DeviceCardPowerMeter
-          v-else-if="device.deviceType === 'powermeter'"
-          :title="device.title"
-          :description="device.description"
-          :status="device.status"
-          :device-id="device.id"
-        />
-      </template>
-    </div>
-
-    <!-- 分页控件 -->
-    <div class="flex items-center justify-between pt-4 border-t mt-auto">
-      <div class="text-sm text-muted-foreground">
-        共 <span class="font-medium text-foreground">{{ filteredDevices.length }}</span> 个设备
-        <span v-if="totalPages > 1" class="ml-2">
+    <!-- 2. 吸底浮动分页控件 (贴边方案) -->
+    <div class="sticky bottom-0 z-20 flex items-center justify-between pt-4 pb-6 border-t bg-background/90 backdrop-blur-md shadow-[0_-10px_20px_-5px_rgba(0,0,0,0.05)] px-6">
+      <div class="text-sm text-muted-foreground font-medium">
+        共 <span class="font-bold text-foreground">{{ filteredDevices.length }}</span> 个设备
+        <span v-if="totalPages > 1" class="ml-2 text-xs opacity-70">
           (第 {{ currentPage }} / {{ totalPages }} 页)
         </span>
       </div>
@@ -171,6 +174,7 @@ onBeforeUnmount(() => {
           size="sm" 
           :disabled="currentPage === 1"
           @click="currentPage--"
+          class="h-8"
         >
           上一页
         </Button>
@@ -180,7 +184,7 @@ onBeforeUnmount(() => {
             :key="page"
             :variant="currentPage === page ? 'default' : 'ghost'"
             size="sm"
-            class="w-8 p-0"
+            class="w-8 h-8 p-0"
             @click="currentPage = page"
           >
             {{ page }}
@@ -191,6 +195,7 @@ onBeforeUnmount(() => {
           size="sm" 
           :disabled="currentPage === totalPages"
           @click="currentPage++"
+          class="h-8"
         >
           下一页
         </Button>

@@ -3,7 +3,7 @@ import { Settings2 } from 'lucide-vue-next'
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="p-6 space-y-6">
     <div>
       <h1 class="text-xl font-semibold tracking-tight">系统设置</h1>
       <p class="text-sm text-muted-foreground mt-1">配置系统参数与连接信息</p>

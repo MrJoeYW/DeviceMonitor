@@ -6,7 +6,6 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
-  CardFooter,
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { StarsBackground } from '@/components/ui/bg-stars'
@@ -42,7 +41,7 @@ const formatValue = (value: number, digits = 1) => Number.isFinite(value) ? valu
 </script>
 
 <template>
-  <Card class="group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-sky-500/40 cursor-pointer bg-card/60 backdrop-blur-md min-h-[16rem]">
+  <Card class="group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-sky-500/40 cursor-pointer bg-card/60 backdrop-blur-md min-h-[19rem]">
     <!-- 星空动画背景 -->
     <StarsBackground class="absolute inset-0 z-0 pointer-events-none opacity-60" />
     
@@ -66,7 +65,7 @@ const formatValue = (value: number, digits = 1) => Number.isFinite(value) ? valu
       </div>
     </CardHeader>
 
-    <CardContent class="relative z-10 py-4">
+    <CardContent class="relative z-10 py-4 flex-1 flex flex-col justify-center">
       <div class="grid grid-cols-2 gap-3">
         <!-- 温度数值 -->
         <div class="flex flex-col items-center justify-center py-4 px-2 rounded-xl bg-background/60 shadow-inner border border-border/40 backdrop-blur-md">
@@ -90,23 +89,5 @@ const formatValue = (value: number, digits = 1) => Number.isFinite(value) ? valu
         </div>
       </div>
     </CardContent>
-
-    <CardFooter class="relative z-10 pt-1 pb-3">
-      <div class="flex items-center justify-between w-full text-[10px] text-muted-foreground border-t border-border/40 pt-3 mt-1">
-        <span class="font-mono opacity-60">ID: {{ deviceId }}</span>
-        <div class="flex items-center gap-1.5">
-          <div
-            class="w-1.5 h-1.5 rounded-full"
-            :class="{
-              'bg-emerald-500 animate-[pulse_2s_ease-in-out_infinite]': status === 'online',
-              'bg-zinc-400': status === 'offline',
-              'bg-amber-500 animate-[pulse_1s_ease-in-out_infinite]': status === 'warning',
-              'bg-zinc-500': status === 'unknown',
-            }"
-          ></div>
-          <span class="opacity-80">实时采集</span>
-        </div>
-      </div>
-    </CardFooter>
   </Card>
 </template>

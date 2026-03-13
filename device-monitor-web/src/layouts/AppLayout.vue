@@ -28,7 +28,7 @@ const pageTitle = computed(() => (route.meta.title as string) ?? '')
       </header>
 
       <!-- Page Content -->
-      <main class="flex-1 overflow-y-auto p-6">
+      <main class="flex-1 overflow-y-auto">
         <RouterView />
       </main>
     </div>

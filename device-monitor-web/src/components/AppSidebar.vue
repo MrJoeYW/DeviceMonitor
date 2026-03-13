@@ -34,28 +34,29 @@ const isCollapsed = ref(false)
 <template>
   <aside
     :class="[
-      'shrink-0 border-r border-border bg-card flex flex-col h-full select-none transition-all duration-200',
+      'relative shrink-0 border-r border-border bg-card flex flex-col h-full select-none transition-all duration-300 z-50 overflow-visible',
       isCollapsed ? 'w-[72px]' : 'w-[220px]',
     ]"
   >
-    <div class="h-14 border-b border-border flex items-center gap-3 px-4">
-      <div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+    <!-- Toggle Button (Floating) -->
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      class="absolute -right-3 top-7 -translate-y-1/2 h-6 w-6 rounded-full border bg-card shadow-md z-[60] hover:bg-accent hover:text-primary transition-all duration-300 flex items-center justify-center group"
+      @click="isCollapsed = !isCollapsed"
+    >
+      <ChevronLeft v-if="!isCollapsed" class="size-3.5 transition-transform group-hover:-translate-x-0.5" />
+      <ChevronRight v-else class="size-3.5 transition-transform group-hover:translate-x-0.5" />
+    </Button>
+
+    <div :class="['h-14 border-b border-border flex items-center transition-all duration-200', isCollapsed ? 'px-0 justify-center' : 'px-4 gap-3']">
+      <div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0 shadow-sm shadow-primary/20">
         <Cpu class="w-4 h-4 text-primary-foreground" />
       </div>
-      <div v-if="!isCollapsed" class="flex flex-col leading-tight">
-        <span class="text-sm font-semibold tracking-tight">DeviceMonitor</span>
-        <span class="text-[10px] text-muted-foreground">工业设备监控平台</span>
-      </div>
-      <div class="ml-auto">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          class="text-muted-foreground hover:text-foreground"
-          @click="isCollapsed = !isCollapsed"
-        >
-          <ChevronLeft v-if="!isCollapsed" class="size-4" />
-          <ChevronRight v-else class="size-4" />
-        </Button>
+      
+      <div v-if="!isCollapsed" class="flex flex-col leading-tight min-w-0 flex-1 animate-in fade-in slide-in-from-left-2 duration-300">
+        <span class="text-sm font-bold tracking-tight truncate">DeviceMonitor</span>
+        <span class="text-[10px] text-muted-foreground truncate font-medium">工业设备监控平台</span>
       </div>
     </div>
 
@@ -108,14 +109,14 @@ const isCollapsed = ref(false)
       </TooltipProvider>
     </nav>
 
-    <div class="p-3 border-t border-border">
-      <div class="flex items-center gap-2 px-2 py-1">
-        <div class="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-[10px] font-medium text-muted-foreground">
+    <div class="p-3 border-t border-border shrink-0">
+      <div :class="['flex items-center transition-all duration-200', isCollapsed ? 'justify-center' : 'gap-2 px-2 py-1']">
+        <div class="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-[10px] font-medium text-muted-foreground shrink-0 border border-border shadow-inner">
           管
         </div>
-        <div v-if="!isCollapsed" class="flex flex-col leading-tight">
-          <span class="text-xs font-medium">管理员</span>
-          <span class="text-[10px] text-muted-foreground">admin@system</span>
+        <div v-if="!isCollapsed" class="flex flex-col leading-tight min-w-0 animate-in fade-in slide-in-from-left-1 duration-300">
+          <span class="text-xs font-bold truncate">管理员</span>
+          <span class="text-[10px] text-muted-foreground truncate opacity-70">admin@system</span>
         </div>
       </div>
     </div>

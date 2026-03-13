@@ -356,7 +356,7 @@ const deviceTypeOptions = ['FlowMeter', 'PowerMeter', 'AirConditioner', 'Other']
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="p-6 space-y-6">
     <!-- 错误提示条 -->
     <div
       v-if="errorMsg"

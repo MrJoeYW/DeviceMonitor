@@ -3,7 +3,7 @@ import { ScrollText } from 'lucide-vue-next'
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="p-6 space-y-6">
     <div>
       <h1 class="text-xl font-semibold tracking-tight">日志</h1>
       <p class="text-sm text-muted-foreground mt-1">查看系统运行日志与事件记录</p>

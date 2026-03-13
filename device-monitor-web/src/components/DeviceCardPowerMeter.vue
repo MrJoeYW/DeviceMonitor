@@ -5,7 +5,6 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
-  CardFooter,
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import FuzzyText from '@/components/ui/FuzzyText.vue'
@@ -38,7 +37,7 @@ const currentStatus = () => statusConfig[props.status]
   <div class="relative group h-full">
     <!-- Card 本文 -->
     <Card 
-      class="relative h-full flex flex-col transition-all duration-300 bg-background/50 backdrop-blur-sm min-h-[16rem] z-10 border shadow-sm border-purple-500/20"
+      class="relative h-full flex flex-col transition-all duration-300 bg-background/50 backdrop-blur-sm min-h-[19rem] z-10 border shadow-sm border-purple-500/20"
     >
       <CardHeader class="relative z-10 pb-2">
         <div class="flex items-start justify-between gap-2">
@@ -85,24 +84,6 @@ const currentStatus = () => statusConfig[props.status]
           />
         </div>
       </CardContent>
-
-      <CardFooter class="relative z-10 pt-1 pb-3">
-        <div class="flex items-center justify-between w-full text-[10px] text-muted-foreground border-t border-purple-500/20 pt-3 mt-1">
-          <span class="font-mono opacity-60">ID: {{ deviceId }}</span>
-          <div class="flex items-center gap-1.5">
-            <div
-              class="w-1.5 h-1.5 rounded-full"
-              :class="{
-                'bg-emerald-500 animate-[pulse_2s_ease-in-out_infinite]': status === 'online',
-                'bg-zinc-400': status === 'offline',
-                'bg-amber-500 animate-[pulse_1s_ease-in-out_infinite]': status === 'warning',
-                'bg-zinc-500': status === 'unknown',
-              }"
-            ></div>
-            <span class="opacity-80">连接中</span>
-          </div>
-        </div>
-      </CardFooter>
     </Card>
   </div>
 </template>
