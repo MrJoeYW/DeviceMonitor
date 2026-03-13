@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import FuzzyText from '@/components/ui/FuzzyText.vue'
+import { FlipCard } from '@/components/ui/flip-card'
 
 interface Props {
   title?: string
@@ -34,10 +35,10 @@ const currentStatus = () => statusConfig[props.status]
 </script>
 
 <template>
-  <div class="relative group h-full">
-    <!-- Card 本文 -->
+  <FlipCard class="w-full min-h-[19rem]">
+    <!-- 正面 -->
     <Card 
-      class="relative h-full flex flex-col transition-all duration-300 bg-background/50 backdrop-blur-sm min-h-[19rem] z-10 border shadow-sm border-purple-500/20"
+      class="relative h-full flex flex-col transition-all duration-300 bg-background/50 backdrop-blur-sm z-10 border-0 shadow-none"
     >
       <CardHeader class="relative z-10 pb-2">
         <div class="flex items-start justify-between gap-2">
@@ -85,5 +86,42 @@ const currentStatus = () => statusConfig[props.status]
         </div>
       </CardContent>
     </Card>
-  </div>
+
+    <!-- 背面 -->
+    <template #back>
+      <div class="h-full flex flex-col p-4 bg-background/95 backdrop-blur-xl border border-border/50">
+        <div class="flex items-center gap-2 mb-4">
+          <div class="w-1 h-5 bg-purple-500 rounded-full"></div>
+          <h3 class="font-bold text-sm tracking-tight">电能参数配置</h3>
+        </div>
+        
+        <div class="flex-1 space-y-3">
+          <div class="p-2.5 rounded-lg border border-border bg-muted/20">
+            <div class="text-[10px] text-muted-foreground mb-0.5">设备序列号 (ID)</div>
+            <div class="font-mono text-xs font-semibold">{{ deviceId }}</div>
+          </div>
+          
+          <div class="grid grid-cols-1 gap-1">
+            <div class="flex items-center justify-between text-[11px] py-1.5 border-b border-border/30">
+              <span class="text-muted-foreground">电压系数</span>
+              <span class="font-medium">220.0 (Custom)</span>
+            </div>
+            <div class="flex items-center justify-between text-[11px] py-1.5 border-b border-border/30">
+              <span class="text-muted-foreground">电流阈值</span>
+              <span class="font-medium">15.0A</span>
+            </div>
+            <div class="flex items-center justify-between text-[11px] py-1.5">
+              <span class="text-muted-foreground">通信节点</span>
+              <span class="font-medium">Gateway #01</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-auto pt-3 border-t border-border/50 flex justify-between items-center">
+          <span class="text-[9px] text-muted-foreground/60 tracking-wider">CONFIG V1.2</span>
+          <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+        </div>
+      </div>
+    </template>
+  </FlipCard>
 </template>
