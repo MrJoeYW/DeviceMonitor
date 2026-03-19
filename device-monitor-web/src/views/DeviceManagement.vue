@@ -352,7 +352,13 @@ const readFunctionCodeOptions = [
   { value: 4, label: '输入寄存器 (FC 04)' },
 ]
 const dataTypeOptions = ['Int16', 'UInt16', 'Int32', 'UInt32', 'Float32']
-const deviceTypeOptions = ['FlowMeter', 'PowerMeter', 'AirConditioner', 'Other']
+const deviceTypeOptions = [
+  { value: 'FlowMeter', label: '流量计' },
+  { value: 'PowerMeter', label: '电能表' },
+  { value: 'AirSpeedMeter', label: '风速仪' },
+  { value: 'AirConditioner', label: '空调' },
+  { value: 'Other', label: '其他' }
+]
 </script>
 
 <template>
@@ -703,7 +709,7 @@ const deviceTypeOptions = ['FlowMeter', 'PowerMeter', 'AirConditioner', 'Other']
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem v-for="dt in deviceTypeOptions" :key="dt" :value="dt">{{ dt }}</SelectItem>
+                    <SelectItem v-for="dt in deviceTypeOptions" :key="dt.value" :value="dt.value">{{ dt.label }}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import {
   Card,
   CardHeader,
@@ -13,8 +14,12 @@ import { FlipCard } from '@/components/ui/flip-card'
 interface Props {
   title?: string
   description?: string
-  status?: 'online' | 'offline' | 'warning' | 'unknown'
+  status?: 'online' | 'offline' | 'warning' | 'unknown' | 'disabled'
   deviceId?: string
+  voltage?: number
+  current?: number
+  power?: number
+  energy?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -22,24 +27,34 @@ const props = withDefaults(defineProps<Props>(), {
   description: '设备描述',
   status: 'unknown',
   deviceId: '--',
+  voltage: 0,
+  current: 0,
+  power: 0,
+  energy: 0,
 })
 
-const statusConfig = {
+const defaultStatus = { label: '未知', class: 'bg-muted text-muted-foreground border-border' }
+
+const statusConfig: Record<string, { label: string; class: string }> = {
   online: { label: '在线', class: 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30' },
   offline: { label: '离线', class: 'bg-muted text-muted-foreground border-border' },
   warning: { label: '告警', class: 'bg-amber-500/15 text-amber-500 border-amber-500/30' },
-  unknown: { label: '未知', class: 'bg-muted text-muted-foreground border-border' },
+  unknown: defaultStatus,
+  disabled: { label: '禁用', class: 'bg-muted text-muted-foreground border-border' },
 }
 
-const currentStatus = () => statusConfig[props.status]
+const currentStatus = computed(() => statusConfig[props.status] ?? defaultStatus)
+
+const formatValue = (value: number | undefined, digits = 1) => {
+  if (value === undefined || value === null || !Number.isFinite(value)) return '0.0'
+  return value.toFixed(digits)
+}
 </script>
 
 <template>
   <FlipCard class="w-full min-h-[19rem]">
     <!-- 正面 -->
-    <Card 
-      class="relative h-full flex flex-col transition-all duration-300 bg-background/50 backdrop-blur-sm z-10 border-0 shadow-none"
-    >
+    <Card class="h-full relative overflow-hidden transition-all duration-300 bg-card/60 backdrop-blur-md border-0 shadow-none">
       <CardHeader class="relative z-10 pb-2">
         <div class="flex items-start justify-between gap-2">
           <div class="flex-1 min-w-0">
@@ -53,36 +68,75 @@ const currentStatus = () => statusConfig[props.status]
           </div>
           <Badge
             variant="outline"
-            :class="['text-[10px] px-2 py-0.5 h-6 shrink-0 font-medium border bg-card/80', currentStatus().class]"
+            :class="['text-[10px] px-2 py-0.5 h-6 shrink-0 font-medium border bg-card/80', currentStatus.class]"
           >
-            {{ currentStatus().label }}
+            {{ currentStatus.label }}
           </Badge>
         </div>
       </CardHeader>
 
-      <CardContent class="relative z-10 py-4 flex-1 flex flex-col items-center justify-center gap-2">
-        <div class="border border-dashed border-purple-500/30 bg-purple-500/5 p-6 rounded-lg w-full text-center flex flex-col items-center justify-center h-full">
-          <FuzzyText
-            text="NO SIGNAL"
-            :fontSize="32"
-            :fontWeight="900"
-            color="rgba(147, 112, 219, 0.7)"
-            :baseIntensity="0.1"
-            :hoverIntensity="0.4"
-            :fuzzRange="15"
-            :fps="24"
-            class="font-mono tracking-widest"
-          />
-          <FuzzyText
-            text="SCANNING GRID..."
-            :fontSize="10"
-            color="rgba(168, 85, 247, 0.6)"
-            :baseIntensity="0.05"
-            :hoverIntensity="0.3"
-            :fuzzRange="5"
-            :fps="24"
-            class="uppercase font-mono tracking-widest mt-2"
-          />
+      <CardContent class="relative z-10 py-3 flex-1 flex flex-col justify-center">
+        <div class="grid grid-cols-2 gap-3">
+          <!-- 电压 -->
+          <div class="flex flex-col items-center justify-center py-2 px-2 rounded-xl bg-purple-500/5 shadow-inner border border-purple-500/20 backdrop-blur-md">
+            <span class="text-[10px] text-purple-600 dark:text-purple-400 font-medium mb-1">电压 (V)</span>
+            <FuzzyText
+              :text="formatValue(voltage, 1)"
+              :fontSize="26"
+              :fontWeight="700"
+              color="rgba(147, 56, 219, 0.9)"
+              :baseIntensity="0.18"
+              :hoverIntensity="0.5"
+              :fuzzRange="30"
+              :fps="60"
+              class="font-mono"
+            />
+          </div>
+          <!-- 电流 -->
+          <div class="flex flex-col items-center justify-center py-2 px-2 rounded-xl bg-background/60 shadow-inner border border-border/40 backdrop-blur-md">
+            <span class="text-[10px] text-muted-foreground font-medium mb-1">电流 (A)</span>
+            <FuzzyText
+              :text="formatValue(current, 2)"
+              :fontSize="26"
+              :fontWeight="700"
+              color="rgba(100, 100, 120, 0.9)"
+              :baseIntensity="0.18"
+              :hoverIntensity="0.5"
+              :fuzzRange="30"
+              :fps="60"
+              class="font-mono"
+            />
+          </div>
+          <!-- 功率 -->
+          <div class="flex flex-col items-center justify-center py-2 px-2 rounded-xl bg-amber-500/5 shadow-inner border border-amber-500/20 backdrop-blur-md">
+            <span class="text-[10px] text-amber-600 dark:text-amber-400 font-medium mb-1">功率 (kW)</span>
+            <FuzzyText
+              :text="formatValue(power, 2)"
+              :fontSize="26"
+              :fontWeight="700"
+              color="rgba(217, 119, 6, 0.9)"
+              :baseIntensity="0.18"
+              :hoverIntensity="0.5"
+              :fuzzRange="30"
+              :fps="60"
+              class="font-mono"
+            />
+          </div>
+          <!-- 电能 -->
+          <div class="flex flex-col items-center justify-center py-2 px-2 rounded-xl bg-emerald-500/5 shadow-inner border border-emerald-500/20 backdrop-blur-md">
+            <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium mb-1">累计电能 (kWh)</span>
+            <FuzzyText
+              :text="formatValue(energy, 2)"
+              :fontSize="26"
+              :fontWeight="700"
+              color="rgba(16, 185, 129, 0.9)"
+              :baseIntensity="0.18"
+              :hoverIntensity="0.5"
+              :fuzzRange="30"
+              :fps="60"
+              class="font-mono"
+            />
+          </div>
         </div>
       </CardContent>
     </Card>

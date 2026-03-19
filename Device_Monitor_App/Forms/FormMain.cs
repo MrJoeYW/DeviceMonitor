@@ -1,5 +1,7 @@
 using Device_Monitor_App.Controllers;
 using Device_Monitor_App.Models;
+using Device_Monitor_App.Services;
+using Device_Monitor_App.Services.Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Web.WebView2.Core;
 using System.Text.Json;
@@ -15,6 +17,7 @@ public partial class FormMain : Form
     private readonly IntegratorController _integratorController;
     private readonly DeviceController _deviceController;
     private readonly DeviceTagMappingController _tagMappingController;
+    private readonly ISnapshotService _snapshotService;
     private readonly ILogger<FormMain> _logger;
 
     private static readonly JsonSerializerOptions _jsonOpts = new()
@@ -28,11 +31,13 @@ public partial class FormMain : Form
         IntegratorController integratorController,
         DeviceController deviceController,
         DeviceTagMappingController tagMappingController,
+        ISnapshotService snapshotService,
         ILogger<FormMain> logger)
     {
         _integratorController = integratorController;
         _deviceController = deviceController;
         _tagMappingController = tagMappingController;
+        _snapshotService = snapshotService;
         _logger = logger;
         InitializeComponent();
     }
@@ -113,6 +118,9 @@ public partial class FormMain : Form
 
                 "tag:delete" => _tagMappingController.Delete(
                     payload!["id"]!.GetValue<int>()),
+
+                // ========== 实时数据快照 ==========
+                "snapshot:getAll" => _snapshotService.GetAllSnapshots(),
 
                 _ => throw new NotSupportedException($"未知 action: {action}")
             };

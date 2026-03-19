@@ -82,6 +82,7 @@ static class Program
         services.AddSingleton<IIntegratorService, IntegratorService>();
         services.AddSingleton<IDeviceService, DeviceService>();
         services.AddSingleton<IDeviceTagMappingService, DeviceTagMappingService>();
+        services.AddSingleton<ISnapshotService, SnapshotService>();
 
         // Controller 层
         services.AddSingleton<IntegratorController>();

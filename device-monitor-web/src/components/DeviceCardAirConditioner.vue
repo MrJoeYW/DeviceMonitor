@@ -8,7 +8,6 @@ import {
   CardContent,
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { StarsBackground } from '@/components/ui/bg-stars'
 import { FlipCard } from '@/components/ui/flip-card'
 
 interface Props {
@@ -17,16 +16,18 @@ interface Props {
   status?: 'online' | 'offline' | 'warning' | 'unknown' | 'disabled'
   deviceId?: string
   temperature?: number
-  flow?: number
+  setTemperature?: number
+  humidity?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  title: '流量表',
+  title: '空调',
   description: '设备描述',
   status: 'unknown',
   deviceId: '--',
   temperature: 0,
-  flow: 0,
+  setTemperature: 0,
+  humidity: 0,
 })
 
 const defaultStatus = { label: '未知', class: 'bg-muted text-muted-foreground border-border' }
@@ -41,7 +42,7 @@ const statusConfig: Record<string, { label: string; class: string }> = {
 
 const currentStatus = computed(() => statusConfig[props.status] ?? defaultStatus)
 
-const formatValue = (value: number | undefined, digits = 1): string => {
+const formatValue = (value: number | undefined, digits = 1) => {
   if (value === undefined || value === null || !Number.isFinite(value)) return '0.0'
   return value.toFixed(digits)
 }
@@ -51,17 +52,14 @@ const formatValue = (value: number | undefined, digits = 1): string => {
   <FlipCard class="w-full min-h-[19rem]">
     <!-- 正面 -->
     <Card class="h-full relative overflow-hidden transition-all duration-300 bg-card/60 backdrop-blur-md border-0 shadow-none">
-      <!-- 星空动画背景 -->
-      <StarsBackground class="absolute inset-0 z-0 pointer-events-none opacity-60" />
-      
       <CardHeader class="relative z-10 pb-2">
         <div class="flex items-start justify-between gap-2">
           <div class="flex-1 min-w-0">
             <CardTitle class="text-[15px] font-semibold truncate text-foreground">{{ title }}</CardTitle>
             <CardDescription class="text-xs mt-1 truncate">{{ description }}</CardDescription>
             <div class="mt-2.5 flex items-center gap-2">
-              <span class="text-[10px] px-2 py-0.5 rounded-full border bg-sky-500/10 text-sky-500 border-sky-500/20 font-medium">
-                流量监测设备
+              <span class="text-[10px] px-2 py-0.5 rounded-full border bg-indigo-500/10 text-indigo-500 border-indigo-500/20 font-medium">
+                环境控制设备
               </span>
             </div>
           </div>
@@ -75,25 +73,35 @@ const formatValue = (value: number | undefined, digits = 1): string => {
       </CardHeader>
 
       <CardContent class="relative z-10 py-4 flex-1 flex flex-col justify-center">
-        <div class="grid grid-cols-2 gap-3">
-          <!-- 温度数值 -->
-          <div class="flex flex-col items-center justify-center py-4 px-2 rounded-xl bg-background/60 shadow-inner border border-border/40 backdrop-blur-md">
-            <span class="text-[11px] text-muted-foreground font-medium mb-1">当前温度</span>
-            <div class="flex items-baseline gap-1">
-              <span class="text-3xl font-bold tracking-tight text-foreground font-mono transition-all duration-200">
+        <div class="grid grid-cols-3 gap-2">
+          <!-- 当前温度 -->
+          <div class="flex flex-col items-center justify-center py-3 px-2 rounded-xl bg-background/60 shadow-inner border border-border/40 backdrop-blur-md">
+            <span class="text-[10px] text-muted-foreground font-medium mb-1">当前温度</span>
+            <div class="flex items-baseline gap-0.5">
+              <span class="text-2xl font-bold tracking-tight text-foreground font-mono">
                 {{ formatValue(temperature, 1) }}
               </span>
-              <span class="text-xs text-muted-foreground font-medium">℃</span>
+              <span class="text-[10px] text-muted-foreground font-medium">℃</span>
             </div>
           </div>
-          <!-- 流量数值 -->
-          <div class="flex flex-col items-center justify-center py-4 px-2 rounded-xl bg-sky-500/5 shadow-inner border border-sky-500/20 backdrop-blur-md">
-            <span class="text-[11px] text-sky-600 dark:text-sky-400 font-medium mb-1">瞬时流量</span>
-            <div class="flex items-baseline gap-1">
-              <span class="text-3xl font-bold tracking-tight text-sky-600 dark:text-sky-400 font-mono transition-all duration-200">
-                {{ formatValue(flow, 1) }}
+          <!-- 设定温度 -->
+          <div class="flex flex-col items-center justify-center py-3 px-2 rounded-xl bg-indigo-500/5 shadow-inner border border-indigo-500/20 backdrop-blur-md">
+            <span class="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium mb-1">设定温度</span>
+            <div class="flex items-baseline gap-0.5">
+              <span class="text-2xl font-bold tracking-tight text-indigo-600 dark:text-indigo-400 font-mono">
+                {{ formatValue(setTemperature, 1) }}
               </span>
-              <span class="text-xs text-sky-600/70 dark:text-sky-400/70 font-medium">m³/h</span>
+              <span class="text-[10px] text-indigo-600/70 dark:text-indigo-400/70 font-medium">℃</span>
+            </div>
+          </div>
+          <!-- 湿度 -->
+          <div class="flex flex-col items-center justify-center py-3 px-2 rounded-xl bg-cyan-500/5 shadow-inner border border-cyan-500/20 backdrop-blur-md">
+            <span class="text-[10px] text-cyan-600 dark:text-cyan-400 font-medium mb-1">湿度</span>
+            <div class="flex items-baseline gap-0.5">
+              <span class="text-2xl font-bold tracking-tight text-cyan-600 dark:text-cyan-400 font-mono">
+                {{ formatValue(humidity, 0) }}
+              </span>
+              <span class="text-[10px] text-cyan-600/70 dark:text-cyan-400/70 font-medium">%</span>
             </div>
           </div>
         </div>
@@ -104,7 +112,7 @@ const formatValue = (value: number | undefined, digits = 1): string => {
     <template #back>
       <div class="h-full flex flex-col p-4 bg-background/95 backdrop-blur-xl border border-border/50">
         <div class="flex items-center gap-2 mb-4">
-          <div class="w-1 h-5 bg-sky-500 rounded-full"></div>
+          <div class="w-1 h-5 bg-indigo-500 rounded-full"></div>
           <h3 class="font-bold text-sm tracking-tight">设备配置详情</h3>
         </div>
         
@@ -117,15 +125,15 @@ const formatValue = (value: number | undefined, digits = 1): string => {
           <div class="grid grid-cols-1 gap-1">
             <div class="flex items-center justify-between text-[11px] py-1.5 border-b border-border/30">
               <span class="text-muted-foreground">采样频率</span>
-              <span class="font-medium">500ms</span>
+              <span class="font-medium">2000ms</span>
             </div>
             <div class="flex items-center justify-between text-[11px] py-1.5 border-b border-border/30">
               <span class="text-muted-foreground">通讯协议</span>
-              <span class="font-medium">Modbus TCP</span>
+              <span class="font-medium">Modbus RTU</span>
             </div>
             <div class="flex items-center justify-between text-[11px] py-1.5">
-              <span class="text-muted-foreground">安装位置</span>
-              <span class="font-medium">工业园区 #3</span>
+              <span class="text-muted-foreground">温控范围</span>
+              <span class="font-medium">16~30 ℃</span>
             </div>
           </div>
         </div>
