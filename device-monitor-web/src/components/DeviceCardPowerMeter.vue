@@ -85,10 +85,10 @@ const formatValue = (value: number | undefined, digits = 1) => {
               :fontSize="26"
               :fontWeight="700"
               color="rgba(147, 56, 219, 0.9)"
-              :baseIntensity="0.18"
-              :hoverIntensity="0.5"
-              :fuzzRange="30"
-              :fps="60"
+              :baseIntensity="0.08"
+              :hoverIntensity="0.2"
+              :fuzzRange="10"
+              :fps="24"
               class="font-mono"
             />
           </div>
@@ -100,10 +100,10 @@ const formatValue = (value: number | undefined, digits = 1) => {
               :fontSize="26"
               :fontWeight="700"
               color="rgba(100, 100, 120, 0.9)"
-              :baseIntensity="0.18"
-              :hoverIntensity="0.5"
-              :fuzzRange="30"
-              :fps="60"
+              :baseIntensity="0.08"
+              :hoverIntensity="0.2"
+              :fuzzRange="10"
+              :fps="24"
               class="font-mono"
             />
           </div>
@@ -115,10 +115,10 @@ const formatValue = (value: number | undefined, digits = 1) => {
               :fontSize="26"
               :fontWeight="700"
               color="rgba(217, 119, 6, 0.9)"
-              :baseIntensity="0.18"
-              :hoverIntensity="0.5"
-              :fuzzRange="30"
-              :fps="60"
+              :baseIntensity="0.08"
+              :hoverIntensity="0.2"
+              :fuzzRange="10"
+              :fps="24"
               class="font-mono"
             />
           </div>
@@ -130,10 +130,10 @@ const formatValue = (value: number | undefined, digits = 1) => {
               :fontSize="26"
               :fontWeight="700"
               color="rgba(16, 185, 129, 0.9)"
-              :baseIntensity="0.18"
-              :hoverIntensity="0.5"
-              :fuzzRange="30"
-              :fps="60"
+              :baseIntensity="0.08"
+              :hoverIntensity="0.2"
+              :fuzzRange="10"
+              :fps="24"
               class="font-mono"
             />
           </div>
