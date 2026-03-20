@@ -1,4 +1,4 @@
-import { Camera, Geometry, Mesh, Program, Renderer, Transform } from "ogl";
+import { Camera, Geometry, Mesh, Program, Renderer } from "ogl";
 
 export interface ShaderConfig {
   source: string;
@@ -20,9 +20,9 @@ export interface HSVControls {
 export type MouseMode = "click" | "hover";
 
 export class InspiraShaderToy {
+  private container: HTMLElement;
   private renderer: Renderer;
   private camera: Camera;
-  private scene: Transform;
   private geometry: Geometry;
   private program: Program | null = null;
   private mesh: Mesh | null = null;
@@ -122,10 +122,11 @@ export class InspiraShaderToy {
   `;
 
   constructor(
-    private container: HTMLElement,
+    container: HTMLElement,
     mouseMode?: MouseMode,
     fps?: number,
   ) {
+    this.container = container;
     if (mouseMode) {
       this._mouseMode = mouseMode;
     }
@@ -156,9 +157,6 @@ export class InspiraShaderToy {
     // Setup camera (orthographic for full-screen quad)
     this.camera = new Camera(this.renderer.gl);
     this.camera.position.z = 1;
-
-    // Setup scene
-    this.scene = new Transform();
 
     // Setup geometry (full-screen quad)
     this.geometry = new Geometry(this.renderer.gl, {
@@ -230,6 +228,9 @@ export class InspiraShaderToy {
     canvas.addEventListener("touchmove", (event: TouchEvent) => {
       event.preventDefault();
       const touch = event.touches[0];
+      if (!touch) {
+        return;
+      }
       const { x: newX, y: newY } = getScaledMousePos(touch);
 
       this.iMouse.x = newX;
@@ -245,6 +246,9 @@ export class InspiraShaderToy {
       event.preventDefault();
       isMouseDown = true;
       const touch = event.touches[0];
+      if (!touch) {
+        return;
+      }
       const { x: clickX, y: clickY } = getScaledMousePos(touch);
 
       if (this._mouseMode === "click") {

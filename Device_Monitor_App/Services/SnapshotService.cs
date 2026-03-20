@@ -1,16 +1,12 @@
 using Device_Monitor_App.DAO.Interfaces;
 using Device_Monitor_App.Models;
-using Device_Monitor_App.Services.Interfaces;
 using Microsoft.Extensions.Logging;
 
 namespace Device_Monitor_App.Services;
 
-/// <summary>
-/// 设备数据快照服务 - 提供模拟的实时数据
-/// </summary>
 public interface ISnapshotService
 {
-    DeviceSnapshot GetSnapshot(Device device, List<DeviceTagMapping> tags);
+    DeviceSnapshot GetSnapshot(Device device, List<DevicePoint> points);
     List<DeviceSnapshot> GetAllSnapshots();
 }
 
@@ -18,23 +14,21 @@ public class SnapshotService : ISnapshotService
 {
     private readonly ILogger<SnapshotService> _logger;
     private readonly IDeviceDao _deviceDao;
-    private readonly IDeviceTagMappingDao _tagDao;
+    private readonly IDevicePointDao _pointDao;
     private readonly Random _random = new();
-
-    // 模拟数据状态缓存
     private readonly Dictionary<int, DeviceDataState> _deviceStates = new();
 
     public SnapshotService(
         ILogger<SnapshotService> logger,
         IDeviceDao deviceDao,
-        IDeviceTagMappingDao tagDao)
+        IDevicePointDao pointDao)
     {
         _logger = logger;
         _deviceDao = deviceDao;
-        _tagDao = tagDao;
+        _pointDao = pointDao;
     }
 
-    public DeviceSnapshot GetSnapshot(Device device, List<DeviceTagMapping> tags)
+    public DeviceSnapshot GetSnapshot(Device device, List<DevicePoint> points)
     {
         if (!_deviceStates.TryGetValue(device.Id, out var state))
         {
@@ -50,6 +44,7 @@ public class SnapshotService : ISnapshotService
             IntegratorId = device.IntegratorId,
             IsEnabled = device.IsEnabled,
             SlaveAddress = device.SlaveAddress,
+            Status = "unknown",
             Values = new Dictionary<string, double>()
         };
 
@@ -59,20 +54,18 @@ public class SnapshotService : ISnapshotService
             return snapshot;
         }
 
-        // 模拟在线状态
         var randVal = _random.Next(100);
-        snapshot.Status = randVal < 85 ? "online" : (randVal < 95 ? "warning" : "offline");
+        snapshot.Status = randVal < 85 ? "online" : randVal < 95 ? "warning" : "offline";
 
         if (snapshot.Status == "offline")
         {
             return snapshot;
         }
 
-        // 根据设备类型生成模拟数据
-        foreach (var tag in tags.Where(t => t.IsEnabled))
+        foreach (var point in points.Where(item => item.IsEnabled))
         {
-            var value = GenerateSimulatedValue(device.DeviceType, tag.ValueName, state);
-            snapshot.Values[tag.ValueName] = Math.Round(value * tag.Scale, 2);
+            var value = GenerateSimulatedValue(device.DeviceType, point.PointKey, state);
+            snapshot.Values[point.PointKey] = Math.Round(value * point.Scale, 2);
         }
 
         return snapshot;
@@ -85,66 +78,70 @@ public class SnapshotService : ISnapshotService
 
         foreach (var device in devices)
         {
-            var tags = _tagDao.GetByDeviceId(device.Id).ToList();
-            snapshots.Add(GetSnapshot(device, tags));
+            var points = _pointDao.GetByDeviceId(device.Id).ToList();
+            snapshots.Add(GetSnapshot(device, points));
         }
 
+        _logger.LogDebug("已生成实时快照，Count={Count}", snapshots.Count);
         return snapshots;
     }
 
-    private double GenerateSimulatedValue(string deviceType, string valueName, DeviceDataState state)
+    private double GenerateSimulatedValue(string deviceType, string pointKey, DeviceDataState state)
     {
-        return deviceType.ToLower() switch
+        return deviceType.ToLowerInvariant() switch
         {
-            "flowmeter" or "流量计" => GenerateFlowMeterValue(valueName, state),
-            "powermeter" or "电能表" => GeneratePowerMeterValue(valueName, state),
-            "airspeedmeter" or "风速仪" => GenerateAirSpeedValue(valueName, state),
-            "airconditioner" or "空调" => GenerateAirConditionerValue(valueName, state),
+            "flowmeter" => GenerateFlowMeterValue(pointKey, state),
+            "powermeter" => GeneratePowerMeterValue(pointKey, state),
+            "airspeedmeter" => GenerateAirSpeedValue(pointKey, state),
+            "airconditioner" => GenerateAirConditionerValue(pointKey, state),
             _ => _random.NextDouble() * 100
         };
     }
 
-    private double GenerateFlowMeterValue(string valueName, DeviceDataState state)
+    private double GenerateFlowMeterValue(string pointKey, DeviceDataState state)
     {
-        return valueName.ToLower() switch
+        return pointKey.ToLowerInvariant() switch
         {
-            "temperature" or "温度" => UpdateValue(ref state._temperature, 25, 60, 0.3),
-            "flow" or "流量" => UpdateValue(ref state._flow, 40, 120, 2.0),
-            "pressure" or "压力" => UpdateValue(ref state._pressure, 0.2, 0.8, 0.02),
+            "temperature" or "temperature_peak" or "temperature_valley" => UpdateValue(ref state.Temperature, 25, 60, 0.3),
+            "flow" or "flow_peak" or "flow_valley" => UpdateValue(ref state.Flow, 40, 120, 2.0),
+            "out1_total_high" or "out1_total_low" => state.Energy += _random.NextDouble() * 0.1,
             _ => _random.NextDouble() * 100
         };
     }
 
-    private double GeneratePowerMeterValue(string valueName, DeviceDataState state)
+    private double GeneratePowerMeterValue(string pointKey, DeviceDataState state)
     {
-        return valueName.ToLower() switch
+        return pointKey.ToLowerInvariant() switch
         {
-            "voltage" or "电压" => UpdateValue(ref state._voltage, 215, 235, 0.5),
-            "current" or "电流" => UpdateValue(ref state._current, 5, 50, 1.0),
-            "power" or "功率" => UpdateValue(ref state._power, 1, 15, 0.3),
-            "energy" or "电能" => state._energy += _random.NextDouble() * 0.1,
-            "powerfactor" or "功率因数" => UpdateValue(ref state._powerFactor, 0.85, 0.98, 0.01),
+            "voltage" or "voltage_ub" or "voltage_uc" or "line_voltage_uab" or "line_voltage_ubc" or "line_voltage_uca"
+                => UpdateValue(ref state.Voltage, 215, 235, 0.5),
+            "current" or "current_ib" or "current_ic"
+                => UpdateValue(ref state.Current, 5, 50, 1.0),
+            "power" or "power_a" or "power_b" or "power_c" or "reactive_power"
+                => UpdateValue(ref state.Power, 1, 15, 0.3),
+            "power_factor"
+                => UpdateValue(ref state.PowerFactor, 0.85, 0.98, 0.01),
             _ => _random.NextDouble() * 100
         };
     }
 
-    private double GenerateAirSpeedValue(string valueName, DeviceDataState state)
+    private double GenerateAirSpeedValue(string pointKey, DeviceDataState state)
     {
-        return valueName.ToLower() switch
+        return pointKey.ToLowerInvariant() switch
         {
-            "speed" or "风速" => UpdateValue(ref state._airSpeed, 0.5, 15, 0.3),
-            "direction" or "风向" => UpdateValue(ref state._airDirection, 0, 360, 10),
+            var key when key.StartsWith("speed") => UpdateValue(ref state.AirSpeed, 0.5, 15, 0.3),
+            var key when key.StartsWith("pressure") => UpdateValue(ref state.Pressure, -120, 120, 5),
+            var key when key.StartsWith("temperature") => UpdateValue(ref state.Temperature, 18, 35, 0.4),
             _ => _random.NextDouble() * 100
         };
     }
 
-    private double GenerateAirConditionerValue(string valueName, DeviceDataState state)
+    private double GenerateAirConditionerValue(string pointKey, DeviceDataState state)
     {
-        return valueName.ToLower() switch
+        return pointKey.ToLowerInvariant() switch
         {
-            "temperature" or "温度" or "settemperature" or "设定温度" => UpdateValue(ref state._temperature, 18, 28, 0.2),
-            "humidity" or "湿度" => UpdateValue(ref state._humidity, 40, 70, 1.0),
-            "mode" or "模式" => state._mode,
+            "temperature" or "settemperature" => UpdateValue(ref state.Temperature, 18, 28, 0.2),
+            "cooling_relay" or "fan_relay" or "alarm_relay" => _random.Next(0, 2),
             _ => _random.NextDouble() * 100
         };
     }
@@ -160,13 +157,11 @@ public class SnapshotService : ISnapshotService
             value += (_random.NextDouble() - 0.5) * 2 * maxDrift;
             value = Math.Clamp(value, min, max);
         }
+
         return value;
     }
 }
 
-/// <summary>
-/// 设备数据快照
-/// </summary>
 public class DeviceSnapshot
 {
     public int DeviceId { get; set; }
@@ -179,30 +174,16 @@ public class DeviceSnapshot
     public Dictionary<string, double> Values { get; set; } = new();
 }
 
-/// <summary>
-/// 设备模拟数据状态
-/// </summary>
 internal class DeviceDataState
 {
     public int DeviceId { get; set; }
-
-    // 流量计
-    public double _temperature;
-    public double _flow;
-    public double _pressure;
-
-    // 电能表
-    public double _voltage;
-    public double _current;
-    public double _power;
-    public double _energy = 12345.67;
-    public double _powerFactor;
-
-    // 风速仪
-    public double _airSpeed;
-    public double _airDirection;
-
-    // 空调
-    public double _humidity;
-    public double _mode;
+    public double Temperature;
+    public double Flow;
+    public double Pressure;
+    public double Voltage;
+    public double Current;
+    public double Power;
+    public double Energy = 12345.67;
+    public double PowerFactor;
+    public double AirSpeed;
 }

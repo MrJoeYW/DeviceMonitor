@@ -4,9 +4,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Device_Monitor_App.Controllers;
 
-/// <summary>
-/// 网关控制器
-/// </summary>
 public class IntegratorController
 {
     private readonly IIntegratorService _service;
@@ -22,17 +19,9 @@ public class IntegratorController
 
     public Integrator? GetById(int id) => _service.GetById(id);
 
-    public int Add(string name, string ipAddress, int port, string plcBaseAddress, int plcBlockSize)
+    public int Add(Integrator integrator)
     {
-        _logger.LogInformation("请求新增网关: {Name} ({Ip}:{Port}), PLC={Base}+{Size}", name, ipAddress, port, plcBaseAddress, plcBlockSize);
-        var integrator = new Integrator
-        {
-            Name = name,
-            IpAddress = ipAddress,
-            Port = port,
-            PlcBaseAddress = plcBaseAddress,
-            PlcBlockSize = plcBlockSize
-        };
+        _logger.LogInformation("请求新增网关: {Name} ({IpAddress}:{Port})", integrator.Name, integrator.IpAddress, integrator.Port);
         return _service.Add(integrator);
     }
 

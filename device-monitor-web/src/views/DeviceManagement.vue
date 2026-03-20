@@ -1,101 +1,97 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
-import { Plus, Pencil, Trash2, Cable, Settings2, Cpu, Network, MoreHorizontal, ChevronRight, Loader2 } from 'lucide-vue-next'
+import { computed, onMounted, ref } from 'vue'
+import { Cable, ChevronRight, Cpu, Loader2, Network, Pencil, Plus, RefreshCw, Settings2, Trash2 } from 'lucide-vue-next'
 import { sendMessage } from '@/api/bridge'
-
-// shadcn-ui components
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Dialog, DialogContent, DialogDescription, DialogFooter,
-  DialogHeader, DialogTitle
-} from '@/components/ui/dialog'
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
-} from '@/components/ui/select'
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow
-} from '@/components/ui/table'
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
-// ==================== 类型定义 ====================
-interface Integrator {
-  id: number
-  name: string
-  ipAddress: string
-  port: number
-  plcBaseAddress: string
-  plcBlockSize: number
-  isEnabled: boolean
-}
-
-interface Device {
-  id: number
-  integratorId: number
-  name: string
-  deviceType: string
-  slaveAddress: number
-  readFunctionCode: number
-  readStartRegister: number
-  readRegisterCount: number
-  isOnline: boolean
-  isEnabled: boolean
-}
-
-interface DeviceTagMapping {
-  id: number
-  deviceId: number
-  valueName: string
-  registerOffset: number
-  dataType: string
-  scale: number
-  plcOffset: number
-  isEnabled: boolean
-}
-
-// ==================== 状态 ====================
-const integrators = ref<Integrator[]>([])
-const devices = ref<Device[]>([])
-// 按 deviceId 存储已加载的标签映射（懒加载）
-const tagMappingsMap = ref<Record<number, DeviceTagMapping[]>>({})
+interface Integrator { id:number; name:string; ipAddress:string; port:number; isEnabled:boolean }
+interface Device { id:number; integratorId:number; name:string; deviceType:string; deviceModel:string; templateKey:string; slaveAddress:number; pollIntervalMs:number; isOnline:boolean; isEnabled:boolean }
+interface DeviceTemplate { key:string; deviceType:string; deviceModel:string; description:string; readGroupCount:number; pointCount:number }
+interface DeviceReadGroup { id:number; deviceId:number; name:string; functionCode:number; startRegister:number; registerCount:number; sortOrder:number; isEnabled:boolean }
+interface DevicePoint { id:number; deviceId:number; readGroupId:number; pointKey:string; displayName:string; registerAddress:number; registerLength:number; dataType:string; scale:number; unit:string; plcAddress:string; notes:string; sortOrder:number; isEnabled:boolean }
 
 const loading = ref(false)
 const errorMsg = ref('')
+const expandedDeviceId = ref<number | null>(null)
+const integrators = ref<Integrator[]>([])
+const devices = ref<Device[]>([])
+const templates = ref<DeviceTemplate[]>([])
+const readGroupsMap = ref<Record<number, DeviceReadGroup[]>>({})
+const pointsMap = ref<Record<number, DevicePoint[]>>({})
 
-function showError(msg: string) {
-  errorMsg.value = msg
-  setTimeout(() => { errorMsg.value = '' }, 5000)
+const showIntegratorDialog = ref(false)
+const integratorDialogMode = ref<'add' | 'edit'>('add')
+const integratorSaving = ref(false)
+const integratorForm = ref<Integrator>({ id: 0, name: '', ipAddress: '', port: 502, isEnabled: true })
+
+const showDeviceDialog = ref(false)
+const deviceDialogMode = ref<'add' | 'edit'>('add')
+const deviceSaving = ref(false)
+const deviceForm = ref<Device>({ id: 0, integratorId: 0, name: '', deviceType: 'FlowMeter', deviceModel: '', templateKey: '', slaveAddress: 1, pollIntervalMs: 1000, isOnline: false, isEnabled: true })
+
+const showGroupDialog = ref(false)
+const groupDialogMode = ref<'add' | 'edit'>('add')
+const groupSaving = ref(false)
+const groupForm = ref<DeviceReadGroup>({ id: 0, deviceId: 0, name: '', functionCode: 3, startRegister: 0, registerCount: 1, sortOrder: 1, isEnabled: true })
+
+const showPointDialog = ref(false)
+const pointDialogMode = ref<'add' | 'edit'>('add')
+const pointSaving = ref(false)
+const pointForm = ref<DevicePoint>({ id: 0, deviceId: 0, readGroupId: 0, pointKey: '', displayName: '', registerAddress: 0, registerLength: 1, dataType: 'UInt16', scale: 1, unit: '', plcAddress: '', notes: '', sortOrder: 1, isEnabled: true })
+
+const dataTypeOptions = ['Int16', 'UInt16', 'Int32', 'UInt32', 'Float32']
+const functionCodeOptions = [{ value: 3, label: 'FC03 保持寄存器' }, { value: 4, label: 'FC04 输入寄存器' }]
+const deviceTypeOptions = computed(() => Array.from(new Set(templates.value.map(item => item.deviceType))))
+const templateOptions = computed(() => !deviceForm.value.deviceType ? templates.value : templates.value.filter(item => item.deviceType === deviceForm.value.deviceType))
+const stats = computed(() => ({
+  integratorCount: integrators.value.length,
+  deviceCount: devices.value.length,
+  enabledDeviceCount: devices.value.filter(item => item.isEnabled).length,
+  groupCount: Object.values(readGroupsMap.value).reduce((sum, list) => sum + list.length, 0),
+  pointCount: Object.values(pointsMap.value).reduce((sum, list) => sum + list.length, 0),
+}))
+
+function showError(message: string) {
+  errorMsg.value = message
+  window.setTimeout(() => { if (errorMsg.value === message) errorMsg.value = '' }, 5000)
 }
 
-// ==================== 初始化 ====================
+function getIntegratorName(id: number) { return integrators.value.find(item => item.id === id)?.name ?? '未分配' }
+function getGroups(deviceId: number) { return readGroupsMap.value[deviceId] ?? [] }
+function getPoints(deviceId: number) { return pointsMap.value[deviceId] ?? [] }
+function getPointsByGroup(deviceId: number, readGroupId: number) { return getPoints(deviceId).filter(item => item.readGroupId === readGroupId) }
+function getTemplateText(device: Device) { const t = templates.value.find(item => item.key === device.templateKey); return t ? `${t.deviceModel} · ${t.pointCount} 点` : (device.deviceModel || device.deviceType) }
+function toggleExpandDevice(deviceId: number) { expandedDeviceId.value = expandedDeviceId.value === deviceId ? null : deviceId }
+
+async function loadDeviceDetails(deviceId: number) {
+  const [groups, points] = await Promise.all([
+    sendMessage<DeviceReadGroup[]>('readGroup:getByDeviceId', { deviceId }),
+    sendMessage<DevicePoint[]>('point:getByDeviceId', { deviceId }),
+  ])
+  readGroupsMap.value[deviceId] = groups || []
+  pointsMap.value[deviceId] = points || []
+}
+
 async function loadData() {
   loading.value = true
   try {
-    const [igs, devs] = await Promise.all([
+    const [igs, devs, tpls] = await Promise.all([
       sendMessage<Integrator[]>('integrator:getAll'),
       sendMessage<Device[]>('device:getAll'),
+      sendMessage<DeviceTemplate[]>('device:getTemplates'),
     ])
     integrators.value = igs || []
     devices.value = devs || []
+    templates.value = tpls || []
+    await Promise.all(devices.value.map(device => loadDeviceDetails(device.id)))
   } catch (e: any) {
-    showError('加载数据失败：' + e.message)
+    showError(`加载数据失败: ${e.message}`)
   } finally {
     loading.value = false
   }
@@ -103,740 +99,370 @@ async function loadData() {
 
 onMounted(loadData)
 
-// ==================== Tab 状态 ====================
-const activeTab = ref('integrators')
-
-// ==================== 集成设备 Dialog ====================
-const showIntDialog = ref(false)
-const intDialogMode = ref<'add' | 'edit'>('add')
-const intSaving = ref(false)
-const intForm = ref<Integrator>({
-  id: 0, name: '', ipAddress: '', port: 502,
-  plcBaseAddress: '', plcBlockSize: 100, isEnabled: true
-})
-
 function openAddIntegrator() {
-  intDialogMode.value = 'add'
-  intForm.value = { id: 0, name: '', ipAddress: '', port: 502, plcBaseAddress: '', plcBlockSize: 100, isEnabled: true }
-  showIntDialog.value = true
+  integratorDialogMode.value = 'add'
+  integratorForm.value = { id: 0, name: '', ipAddress: '', port: 502, isEnabled: true }
+  showIntegratorDialog.value = true
 }
-
-function openEditIntegrator(item: Integrator) {
-  intDialogMode.value = 'edit'
-  intForm.value = { ...item }
-  showIntDialog.value = true
-}
-
+function openEditIntegrator(item: Integrator) { integratorDialogMode.value = 'edit'; integratorForm.value = { ...item }; showIntegratorDialog.value = true }
 async function saveIntegrator() {
-  intSaving.value = true
+  integratorSaving.value = true
   try {
-    if (intDialogMode.value === 'add') {
-      const newId = await sendMessage<number>('integrator:add', intForm.value)
-      integrators.value.push({ ...intForm.value, id: newId })
+    if (integratorDialogMode.value === 'add') {
+      const id = await sendMessage<number>('integrator:add', integratorForm.value)
+      integrators.value.push({ ...integratorForm.value, id })
     } else {
-      await sendMessage<boolean>('integrator:update', intForm.value)
-      const idx = integrators.value.findIndex(i => i.id === intForm.value.id)
-      if (idx !== -1) integrators.value[idx] = { ...intForm.value }
+      await sendMessage<boolean>('integrator:update', integratorForm.value)
+      const idx = integrators.value.findIndex(item => item.id === integratorForm.value.id)
+      if (idx >= 0) integrators.value[idx] = { ...integratorForm.value }
     }
-    showIntDialog.value = false
-  } catch (e: any) {
-    showError('保存失败：' + e.message)
-  } finally {
-    intSaving.value = false
-  }
+    showIntegratorDialog.value = false
+  } catch (e: any) { showError(`保存网关失败: ${e.message}`) } finally { integratorSaving.value = false }
 }
-
 async function deleteIntegrator(id: number) {
   try {
     await sendMessage<boolean>('integrator:delete', { id })
-    const devIds = devices.value.filter(d => d.integratorId === id).map(d => d.id)
-    devIds.forEach(did => { delete tagMappingsMap.value[did] })
-    devices.value = devices.value.filter(d => d.integratorId !== id)
-    integrators.value = integrators.value.filter(i => i.id !== id)
-  } catch (e: any) {
-    showError('删除失败：' + e.message)
-  }
+    const ids = devices.value.filter(item => item.integratorId === id).map(item => item.id)
+    ids.forEach(deviceId => { delete readGroupsMap.value[deviceId]; delete pointsMap.value[deviceId] })
+    devices.value = devices.value.filter(item => item.integratorId !== id)
+    integrators.value = integrators.value.filter(item => item.id !== id)
+  } catch (e: any) { showError(`删除网关失败: ${e.message}`) }
 }
 
-// ==================== 设备 Dialog ====================
-const showDevDialog = ref(false)
-const devDialogMode = ref<'add' | 'edit'>('add')
-const devSaving = ref(false)
-const devForm = ref<Device>({
-  id: 0, integratorId: 0, name: '', deviceType: 'FlowMeter',
-  slaveAddress: 1, readFunctionCode: 3, readStartRegister: 0,
-  readRegisterCount: 10, isOnline: false, isEnabled: true
-})
-
+function applyTemplate(templateKey: string) {
+  const t = templates.value.find(item => item.key === templateKey)
+  if (!t) return
+  deviceForm.value.templateKey = t.key
+  deviceForm.value.deviceType = t.deviceType
+  deviceForm.value.deviceModel = t.deviceModel
+}
 function openAddDevice() {
-  devDialogMode.value = 'add'
-  devForm.value = {
-    id: 0, integratorId: integrators.value[0]?.id ?? 0, name: '', deviceType: 'FlowMeter',
-    slaveAddress: 1, readFunctionCode: 3, readStartRegister: 0,
-    readRegisterCount: 10, isOnline: false, isEnabled: true
-  }
-  showDevDialog.value = true
+  const t = templates.value[0]
+  deviceDialogMode.value = 'add'
+  deviceForm.value = { id: 0, integratorId: integrators.value[0]?.id ?? 0, name: '', deviceType: t?.deviceType ?? 'FlowMeter', deviceModel: t?.deviceModel ?? '', templateKey: t?.key ?? '', slaveAddress: 1, pollIntervalMs: 1000, isOnline: false, isEnabled: true }
+  showDeviceDialog.value = true
 }
-
-function openEditDevice(item: Device) {
-  devDialogMode.value = 'edit'
-  devForm.value = { ...item }
-  showDevDialog.value = true
-}
-
+function openEditDevice(item: Device) { deviceDialogMode.value = 'edit'; deviceForm.value = { ...item }; showDeviceDialog.value = true }
 async function saveDevice() {
-  devSaving.value = true
+  deviceSaving.value = true
   try {
-    if (devDialogMode.value === 'add') {
-      const newId = await sendMessage<number>('device:add', devForm.value)
-      devices.value.push({ ...devForm.value, id: newId })
+    if (deviceDialogMode.value === 'add') {
+      const id = await sendMessage<number>('device:add', deviceForm.value)
+      devices.value.push({ ...deviceForm.value, id })
+      await loadDeviceDetails(id)
     } else {
-      await sendMessage<boolean>('device:update', devForm.value)
-      const idx = devices.value.findIndex(d => d.id === devForm.value.id)
-      if (idx !== -1) devices.value[idx] = { ...devForm.value }
+      await sendMessage<boolean>('device:update', deviceForm.value)
+      const idx = devices.value.findIndex(item => item.id === deviceForm.value.id)
+      if (idx >= 0) devices.value[idx] = { ...deviceForm.value }
+      await loadDeviceDetails(deviceForm.value.id)
     }
-    showDevDialog.value = false
-  } catch (e: any) {
-    showError('保存失败：' + e.message)
-  } finally {
-    devSaving.value = false
-  }
+    showDeviceDialog.value = false
+  } catch (e: any) { showError(`保存设备失败: ${e.message}`) } finally { deviceSaving.value = false }
 }
-
 async function deleteDevice(id: number) {
   try {
     await sendMessage<boolean>('device:delete', { id })
-    delete tagMappingsMap.value[id]
-    devices.value = devices.value.filter(d => d.id !== id)
-  } catch (e: any) {
-    showError('删除失败：' + e.message)
-  }
+    devices.value = devices.value.filter(item => item.id !== id)
+    delete readGroupsMap.value[id]
+    delete pointsMap.value[id]
+    if (expandedDeviceId.value === id) expandedDeviceId.value = null
+  } catch (e: any) { showError(`删除设备失败: ${e.message}`) }
+}
+async function rebuildTemplate(device: Device) {
+  try { await sendMessage<boolean>('device:rebuildTemplate', { id: device.id }); await loadDeviceDetails(device.id); expandedDeviceId.value = device.id }
+  catch (e: any) { showError(`按模板重建失败: ${e.message}`) }
+}
+function toggleDeviceEnabled(device: Device) {
+  const original = device.isEnabled
+  device.isEnabled = !device.isEnabled
+  sendMessage<boolean>('device:update', { ...device }).catch((e: any) => { device.isEnabled = original; showError(`更新设备状态失败: ${e.message}`) })
 }
 
-// --- 开关确认控制 ---
-const showConfirmDialog = ref(false)
-const pendingDevice = ref<Device | null>(null)
-const targetEnabled = ref(false)
-
-function onToggleSwitch(item: Device, value: boolean) {
-  pendingDevice.value = item
-  targetEnabled.value = value
-  showConfirmDialog.value = true
-}
-
-async function confirmToggle() {
-  if (!pendingDevice.value) return
-  const item = pendingDevice.value
-  const newVal = targetEnabled.value
-  const originalVal = item.isEnabled
-  item.isEnabled = newVal
-  showConfirmDialog.value = false
+function openAddGroup(deviceId: number) { groupDialogMode.value = 'add'; groupForm.value = { id: 0, deviceId, name: '', functionCode: 3, startRegister: 0, registerCount: 1, sortOrder: getGroups(deviceId).length + 1, isEnabled: true }; showGroupDialog.value = true }
+function openEditGroup(item: DeviceReadGroup) { groupDialogMode.value = 'edit'; groupForm.value = { ...item }; showGroupDialog.value = true }
+async function saveGroup() {
+  groupSaving.value = true
   try {
-    const res = await sendMessage<boolean>('device:update', { ...item })
-    if (!res) throw new Error('后端返回更新失败')
-  } catch (e: any) {
-    item.isEnabled = originalVal
-    showError('更新状态失败：' + e.message)
-  } finally {
-    pendingDevice.value = null
-  }
-}
-
-function cancelToggle() {
-  showConfirmDialog.value = false
-  pendingDevice.value = null
-}
-
-function getIntegratorName(id: number) {
-  return integrators.value.find(i => i.id === id)?.name ?? '未知'
-}
-
-// ==================== 标签映射（懒加载） ====================
-const showTagDialog = ref(false)
-const tagDialogMode = ref<'add' | 'edit'>('add')
-const tagSaving = ref(false)
-const tagForm = ref<DeviceTagMapping>({
-  id: 0, deviceId: 0, valueName: '', registerOffset: 0,
-  dataType: 'Float32', scale: 1.0, plcOffset: 0, isEnabled: true
-})
-
-const expandedDeviceId = ref<number | null>(null)
-const loadingTagsFor = ref<number | null>(null)
-
-async function toggleExpandDevice(deviceId: number) {
-  if (expandedDeviceId.value === deviceId) {
-    expandedDeviceId.value = null
-    return
-  }
-  expandedDeviceId.value = deviceId
-  if (!tagMappingsMap.value[deviceId]) {
-    loadingTagsFor.value = deviceId
-    try {
-      const tags = await sendMessage<DeviceTagMapping[]>('tag:getByDeviceId', { deviceId })
-      tagMappingsMap.value[deviceId] = tags || []
-    } catch (e: any) {
-      showError('加载标签映射失败：' + e.message)
-    } finally {
-      loadingTagsFor.value = null
-    }
-  }
-}
-
-function getDeviceTagMappings(deviceId: number): DeviceTagMapping[] {
-  return tagMappingsMap.value[deviceId] ?? []
-}
-
-function openAddTag(deviceId: number) {
-  tagDialogMode.value = 'add'
-  tagForm.value = {
-    id: 0, deviceId, valueName: '', registerOffset: 0,
-    dataType: 'Float32', scale: 1.0, plcOffset: 0, isEnabled: true
-  }
-  showTagDialog.value = true
-}
-
-function openEditTag(tag: DeviceTagMapping) {
-  tagDialogMode.value = 'edit'
-  tagForm.value = { ...tag }
-  showTagDialog.value = true
-}
-
-async function saveTag() {
-  tagSaving.value = true
-  try {
-    if (tagDialogMode.value === 'add') {
-      const newId = await sendMessage<number>('tag:add', tagForm.value)
-      const { deviceId } = tagForm.value
-      if (!tagMappingsMap.value[deviceId]) tagMappingsMap.value[deviceId] = []
-      tagMappingsMap.value[deviceId].push({ ...tagForm.value, id: newId })
+    const deviceId = groupForm.value.deviceId
+    if (groupDialogMode.value === 'add') {
+      const id = await sendMessage<number>('readGroup:add', groupForm.value)
+      getGroups(deviceId).push({ ...groupForm.value, id })
     } else {
-      await sendMessage<boolean>('tag:update', tagForm.value)
-      const list = tagMappingsMap.value[tagForm.value.deviceId]
-      if (list) {
-        const idx = list.findIndex(t => t.id === tagForm.value.id)
-        if (idx !== -1) list[idx] = { ...tagForm.value }
-      }
+      await sendMessage<boolean>('readGroup:update', groupForm.value)
+      const idx = getGroups(deviceId).findIndex(item => item.id === groupForm.value.id)
+      if (idx >= 0) getGroups(deviceId)[idx] = { ...groupForm.value }
     }
-    showTagDialog.value = false
-  } catch (e: any) {
-    showError('保存失败：' + e.message)
-  } finally {
-    tagSaving.value = false
-  }
+    showGroupDialog.value = false
+  } catch (e: any) { showError(`保存采集块失败: ${e.message}`) } finally { groupSaving.value = false }
 }
-
-async function deleteTag(tag: DeviceTagMapping) {
+async function deleteGroup(item: DeviceReadGroup) {
   try {
-    await sendMessage<boolean>('tag:delete', { id: tag.id })
-    const list = tagMappingsMap.value[tag.deviceId]
-    if (list) {
-      const idx = list.findIndex(t => t.id === tag.id)
-      if (idx !== -1) list.splice(idx, 1)
-    }
-  } catch (e: any) {
-    showError('删除失败：' + e.message)
-  }
+    await sendMessage<boolean>('readGroup:delete', { id: item.id })
+    readGroupsMap.value[item.deviceId] = getGroups(item.deviceId).filter(group => group.id !== item.id)
+    pointsMap.value[item.deviceId] = getPoints(item.deviceId).filter(point => point.readGroupId !== item.id)
+  } catch (e: any) { showError(`删除采集块失败: ${e.message}`) }
 }
 
-// ==================== 统计 ====================
-const stats = computed(() => ({
-  intTotal: integrators.value.length,
-  devTotal: devices.value.length,
-  devEnabled: devices.value.filter(d => d.isEnabled).length,
-  tagTotal: Object.values(tagMappingsMap.value).reduce((s, arr) => s + arr.length, 0),
-}))
-
-// ==================== 选项常量 ====================
-const readFunctionCodeOptions = [
-  { value: 3, label: '保持寄存器 (FC 03)' },
-  { value: 4, label: '输入寄存器 (FC 04)' },
-]
-const dataTypeOptions = ['Int16', 'UInt16', 'Int32', 'UInt32', 'Float32']
-const deviceTypeOptions = [
-  { value: 'FlowMeter', label: '流量计' },
-  { value: 'PowerMeter', label: '电能表' },
-  { value: 'AirSpeedMeter', label: '风速仪' },
-  { value: 'AirConditioner', label: '空调' },
-  { value: 'Other', label: '其他' }
-]
+function openAddPoint(deviceId: number, readGroupId?: number) { pointDialogMode.value = 'add'; pointForm.value = { id: 0, deviceId, readGroupId: readGroupId ?? getGroups(deviceId)[0]?.id ?? 0, pointKey: '', displayName: '', registerAddress: 0, registerLength: 1, dataType: 'UInt16', scale: 1, unit: '', plcAddress: '', notes: '', sortOrder: getPoints(deviceId).length + 1, isEnabled: true }; showPointDialog.value = true }
+function openEditPoint(item: DevicePoint) { pointDialogMode.value = 'edit'; pointForm.value = { ...item }; showPointDialog.value = true }
+async function savePoint() {
+  pointSaving.value = true
+  try {
+    const deviceId = pointForm.value.deviceId
+    if (pointDialogMode.value === 'add') {
+      const id = await sendMessage<number>('point:add', pointForm.value)
+      getPoints(deviceId).push({ ...pointForm.value, id })
+    } else {
+      await sendMessage<boolean>('point:update', pointForm.value)
+      const idx = getPoints(deviceId).findIndex(item => item.id === pointForm.value.id)
+      if (idx >= 0) getPoints(deviceId)[idx] = { ...pointForm.value }
+    }
+    showPointDialog.value = false
+  } catch (e: any) { showError(`保存测点失败: ${e.message}`) } finally { pointSaving.value = false }
+}
+async function deletePoint(item: DevicePoint) {
+  try { await sendMessage<boolean>('point:delete', { id: item.id }); pointsMap.value[item.deviceId] = getPoints(item.deviceId).filter(point => point.id !== item.id) }
+  catch (e: any) { showError(`删除测点失败: ${e.message}`) }
+}
 </script>
 
 <template>
   <div class="p-6 space-y-6">
-    <!-- 错误提示条 -->
-    <div
-      v-if="errorMsg"
-      class="flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 px-4 py-2 text-sm text-destructive fixed top-4 right-4 z-50 shadow-lg animate-in fade-in slide-in-from-top-2"
-    >
-      <span>{{ errorMsg }}</span>
-    </div>
-
-    <!-- 页面标题 -->
-    <div class="flex items-center justify-between">
+    <div v-if="errorMsg" class="fixed right-4 top-4 z-50 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm text-destructive shadow-lg">{{ errorMsg }}</div>
+    <div class="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h1 class="text-xl font-semibold tracking-tight">设备管理</h1>
-        <p class="text-sm text-muted-foreground mt-1">管理 TCP 网关、Modbus 子设备和 PLC 标签映射</p>
+        <h1 class="text-xl font-semibold tracking-tight">设备配置重构视图</h1>
+        <p class="mt-1 text-sm text-muted-foreground">现在按“网关 → 设备 → 采集块 → 测点/PLC 映射”管理，替代旧的三表结构。</p>
       </div>
-      <div class="flex items-center gap-4 text-xs text-muted-foreground">
-        <div v-if="loading" class="flex items-center gap-1.5 text-muted-foreground">
-          <Loader2 class="w-3.5 h-3.5 animate-spin" />
-          <span>加载中…</span>
-        </div>
-        <template v-else>
-          <div class="flex items-center gap-1.5">
-            <Network class="w-3.5 h-3.5" />
-            <span>网关 {{ stats.intTotal }}</span>
-          </div>
-          <div class="flex items-center gap-1.5">
-            <Cpu class="w-3.5 h-3.5" />
-            <span>子设备 {{ stats.devEnabled }}/{{ stats.devTotal }}</span>
-          </div>
-          <div class="flex items-center gap-1.5">
-            <Cable class="w-3.5 h-3.5" />
-            <span>标签映射 {{ stats.tagTotal }}</span>
-          </div>
-        </template>
+      <div class="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+        <div class="flex items-center gap-1.5"><Network class="h-3.5 w-3.5" /><span>网关 {{ stats.integratorCount }}</span></div>
+        <div class="flex items-center gap-1.5"><Cpu class="h-3.5 w-3.5" /><span>设备 {{ stats.enabledDeviceCount }}/{{ stats.deviceCount }}</span></div>
+        <div class="flex items-center gap-1.5"><Settings2 class="h-3.5 w-3.5" /><span>采集块 {{ stats.groupCount }}</span></div>
+        <div class="flex items-center gap-1.5"><Cable class="h-3.5 w-3.5" /><span>测点 {{ stats.pointCount }}</span></div>
+        <Button variant="outline" size="sm" class="gap-1" @click="loadData"><RefreshCw class="h-3.5 w-3.5" />刷新</Button>
       </div>
     </div>
 
-    <!-- 选项卡 -->
-    <Tabs v-model="activeTab" class="w-full">
-      <TabsList class="grid w-fit grid-cols-2">
-        <TabsTrigger value="integrators" class="gap-1.5">
-          <Network class="w-4 h-4" />
-          TCP 网关
-        </TabsTrigger>
-        <TabsTrigger value="devices" class="gap-1.5">
-          <Cpu class="w-4 h-4" />
-          子设备 &amp; 标签
-        </TabsTrigger>
-      </TabsList>
+    <div v-if="loading" class="flex items-center justify-center gap-3 py-16 text-muted-foreground">
+      <Loader2 class="h-5 w-5 animate-spin" />
+      <span>正在加载配置...</span>
+    </div>
 
-      <!-- ==================== Tab 1: 网关 ==================== -->
-      <TabsContent value="integrators">
-        <Card>
-          <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-4">
-            <div>
-              <CardTitle class="text-base">TCP 网关列表</CardTitle>
-              <CardDescription>每个网关对应一段独立的 PLC 连续地址块</CardDescription>
+    <div v-else class="grid gap-6 xl:grid-cols-[0.95fr_1.45fr]">
+      <Card>
+        <CardHeader class="flex flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle>TCP 网关</CardTitle>
+            <CardDescription>网关只负责通信连接，PLC 地址映射下沉到测点层。</CardDescription>
+          </div>
+          <Button size="sm" class="gap-1" @click="openAddIntegrator"><Plus class="h-4 w-4" />新建</Button>
+        </CardHeader>
+        <CardContent class="space-y-3">
+          <div v-for="item in integrators" :key="item.id" class="rounded-lg border px-4 py-3">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="font-medium">{{ item.name }}</span>
+                  <Badge :variant="item.isEnabled ? 'default' : 'outline'">{{ item.isEnabled ? '启用' : '停用' }}</Badge>
+                </div>
+                <div class="mt-1 text-xs text-muted-foreground">{{ item.ipAddress }}:{{ item.port }} · 设备 {{ devices.filter(device => device.integratorId === item.id).length }}</div>
+              </div>
+              <div class="flex gap-2">
+                <Button variant="ghost" size="icon" class="h-8 w-8" @click="openEditIntegrator(item)"><Pencil class="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" class="h-8 w-8 text-destructive" @click="deleteIntegrator(item.id)"><Trash2 class="h-4 w-4" /></Button>
+              </div>
             </div>
-            <Button size="sm" @click="openAddIntegrator" class="gap-1">
-              <Plus class="w-4 h-4" /> 新建
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead class="w-[60px]">ID</TableHead>
-                  <TableHead class="min-w-[150px]">名称</TableHead>
-                  <TableHead class="w-[140px]">IP 地址</TableHead>
-                  <TableHead class="w-[80px]">端口</TableHead>
-                  <TableHead class="w-[120px]">PLC 起始地址</TableHead>
-                  <TableHead class="w-[100px]">地址块大小</TableHead>
-                  <TableHead class="w-[80px]">子设备数</TableHead>
-                  <TableHead class="w-[70px] text-right">操作</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="item in integrators" :key="item.id" class="group">
-                  <TableCell class="font-mono text-xs text-muted-foreground">{{ item.id }}</TableCell>
-                  <TableCell class="font-medium">{{ item.name }}</TableCell>
-                  <TableCell class="font-mono text-sm">{{ item.ipAddress }}</TableCell>
-                  <TableCell class="font-mono text-sm">{{ item.port }}</TableCell>
-                  <TableCell class="font-mono text-sm text-blue-500">{{ item.plcBaseAddress }}</TableCell>
-                  <TableCell class="font-mono text-sm">{{ item.plcBlockSize }}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" class="font-mono">
-                      {{ devices.filter(d => d.integratorId === item.id).length }}
-                    </Badge>
-                  </TableCell>
-                  <TableCell class="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger as-child>
-                        <Button variant="ghost" size="icon" class="h-8 w-8">
-                          <MoreHorizontal class="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem @click="openEditIntegrator(item)">
-                          <Pencil class="w-4 h-4 mr-2" /> 编辑
-                        </DropdownMenuItem>
-                        <DropdownMenuItem class="text-destructive" @click="deleteIntegrator(item.id)">
-                          <Trash2 class="w-4 h-4 mr-2" /> 删除
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-                <TableRow v-if="integrators.length === 0">
-                  <TableCell :colspan="8" class="h-24 text-center text-muted-foreground">
-                    暂无网关，点击"新建"添加
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </TabsContent>
+          </div>
+          <div v-if="integrators.length === 0" class="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">暂无网关。</div>
+        </CardContent>
+      </Card>
 
-      <!-- ==================== Tab 2: 子设备 & 标签 ==================== -->
-      <TabsContent value="devices">
-        <Card>
-          <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-4">
-            <div>
-              <CardTitle class="text-base">Modbus 子设备</CardTitle>
-              <CardDescription>点击行可展开查看 PLC 标签映射</CardDescription>
+      <Card>
+        <CardHeader class="flex flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle>设备拓扑</CardTitle>
+            <CardDescription>设备绑定模板后会自动生成默认采集块和测点，再补 PLC 地址。</CardDescription>
+          </div>
+          <Button size="sm" class="gap-1" :disabled="integrators.length === 0" @click="openAddDevice"><Plus class="h-4 w-4" />新建设备</Button>
+        </CardHeader>
+        <CardContent class="space-y-3">
+          <div v-for="device in devices" :key="device.id" class="overflow-hidden rounded-xl border">
+            <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+              <button type="button" class="flex flex-1 items-center gap-3 text-left" @click="toggleExpandDevice(device.id)">
+                <ChevronRight class="h-4 w-4 shrink-0 text-muted-foreground transition-transform" :class="{ 'rotate-90': expandedDeviceId === device.id }" />
+                <div class="min-w-0">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="font-medium">{{ device.name }}</span>
+                    <Badge variant="outline">{{ device.deviceType }}</Badge>
+                    <Badge variant="secondary">{{ getTemplateText(device) }}</Badge>
+                  </div>
+                  <div class="mt-1 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                    <span>{{ getIntegratorName(device.integratorId) }}</span>
+                    <span>从站 {{ device.slaveAddress }}</span>
+                    <span>轮询 {{ device.pollIntervalMs }} ms</span>
+                    <span>{{ getGroups(device.id).length }} 块 / {{ getPoints(device.id).length }} 点</span>
+                  </div>
+                </div>
+              </button>
+              <div class="flex items-center gap-2">
+                <button type="button" class="inline-flex h-[1.15rem] w-8 shrink-0 items-center rounded-full border border-transparent shadow-xs transition-all outline-none" :class="device.isEnabled ? 'bg-primary' : 'bg-input'" @click="toggleDeviceEnabled(device)">
+                  <span class="pointer-events-none block size-4 rounded-full bg-background transition-transform" :class="device.isEnabled ? 'translate-x-[calc(100%-2px)]' : 'translate-x-0'" />
+                </button>
+                <Button variant="outline" size="sm" class="gap-1" @click="rebuildTemplate(device)"><RefreshCw class="h-3.5 w-3.5" />重建模板</Button>
+                <Button variant="ghost" size="icon" class="h-8 w-8" @click="openEditDevice(device)"><Pencil class="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" class="h-8 w-8 text-destructive" @click="deleteDevice(device.id)"><Trash2 class="h-4 w-4" /></Button>
+              </div>
             </div>
-            <Button size="sm" @click="openAddDevice" class="gap-1" :disabled="integrators.length === 0">
-              <Plus class="w-4 h-4" /> 新建
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead class="w-[40px]"></TableHead>
-                  <TableHead class="w-[60px]">ID</TableHead>
-                  <TableHead class="min-w-[120px]">名称</TableHead>
-                  <TableHead class="min-w-[120px]">所属网关</TableHead>
-                  <TableHead class="w-[80px]">类型</TableHead>
-                  <TableHead class="w-[70px]">从站</TableHead>
-                  <TableHead class="w-[110px]">功能码</TableHead>
-                  <TableHead class="w-[90px]">起始寄存器</TableHead>
-                  <TableHead class="w-[60px]">数量</TableHead>
-                  <TableHead class="w-[80px]">启用</TableHead>
-                  <TableHead class="w-[70px] text-right">操作</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <template v-for="dev in devices" :key="dev.id">
-                  <TableRow class="cursor-pointer group hover:bg-muted/50" @click="toggleExpandDevice(dev.id)">
-                    <TableCell>
-                      <Loader2 v-if="loadingTagsFor === dev.id" class="w-4 h-4 animate-spin text-muted-foreground" />
-                      <ChevronRight v-else class="w-4 h-4 transition-transform text-muted-foreground"
-                        :class="{ 'rotate-90': expandedDeviceId === dev.id }" />
-                    </TableCell>
-                    <TableCell class="font-mono text-xs text-muted-foreground">{{ dev.id }}</TableCell>
-                    <TableCell class="font-medium">{{ dev.name }}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{{ getIntegratorName(dev.integratorId) }}</Badge>
-                    </TableCell>
-                    <TableCell class="text-sm text-muted-foreground">{{ dev.deviceType }}</TableCell>
-                    <TableCell class="font-mono text-sm">{{ dev.slaveAddress }}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" class="text-xs font-mono">
-                        FC {{ dev.readFunctionCode.toString().padStart(2, '0') }}
-                      </Badge>
-                    </TableCell>
-                    <TableCell class="font-mono text-sm">{{ dev.readStartRegister }}</TableCell>
-                    <TableCell class="font-mono text-sm">{{ dev.readRegisterCount }}</TableCell>
-                    <TableCell @click.stop>
-                      <button
-                        type="button"
-                        role="switch"
-                        :aria-checked="dev.isEnabled"
-                        @click.stop="onToggleSwitch(dev, !dev.isEnabled)"
-                        class="inline-flex h-[1.15rem] w-8 shrink-0 items-center rounded-full border border-transparent shadow-xs transition-all outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        :class="dev.isEnabled ? 'bg-primary' : 'bg-input'"
-                      >
-                        <span class="pointer-events-none block size-4 rounded-full bg-background transition-transform"
-                          :class="dev.isEnabled ? 'translate-x-[calc(100%-2px)]' : 'translate-x-0'"
-                        />
-                      </button>
-                    </TableCell>
-                    <TableCell class="text-right" @click.stop>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger as-child>
-                          <Button variant="ghost" size="icon" class="h-8 w-8">
-                            <MoreHorizontal class="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem @click="openEditDevice(dev)">
-                            <Pencil class="w-4 h-4 mr-2" /> 编辑
-                          </DropdownMenuItem>
-                          <DropdownMenuItem @click="openAddTag(dev.id)">
-                            <Cable class="w-4 h-4 mr-2" /> 添加标签映射
-                          </DropdownMenuItem>
-                          <DropdownMenuItem class="text-destructive" @click="deleteDevice(dev.id)">
-                            <Trash2 class="w-4 h-4 mr-2" /> 删除
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
 
-                  <!-- 展开区域: 标签映射子表 -->
-                  <TableRow v-if="expandedDeviceId === dev.id" class="bg-muted/30 hover:bg-muted/30">
-                    <TableCell :colspan="11" class="p-0">
-                      <div class="px-10 py-4 space-y-3">
-                        <div class="flex items-center justify-between">
-                          <div class="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                            <Cable class="w-4 h-4" />
-                            PLC 标签映射
-                            <Badge variant="secondary" class="text-xs">{{ getDeviceTagMappings(dev.id).length }}</Badge>
-                          </div>
-                          <Button variant="outline" size="sm" @click="openAddTag(dev.id)" class="gap-1 h-7 text-xs">
-                            <Plus class="w-3 h-3" />添加
-                          </Button>
-                        </div>
-                        <Table v-if="getDeviceTagMappings(dev.id).length > 0">
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead class="h-8 text-xs">值名称</TableHead>
-                              <TableHead class="h-8 text-xs w-[90px]">寄存器偏移</TableHead>
-                              <TableHead class="h-8 text-xs w-[100px]">数据类型</TableHead>
-                              <TableHead class="h-8 text-xs w-[80px]">缩放</TableHead>
-                              <TableHead class="h-8 text-xs w-[100px]">PLC 偏移</TableHead>
-                              <TableHead class="h-8 text-xs w-[80px] text-right">操作</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            <TableRow v-for="tag in getDeviceTagMappings(dev.id)" :key="tag.id">
-                              <TableCell class="py-1.5 font-medium text-sm">{{ tag.valueName }}</TableCell>
-                              <TableCell class="py-1.5 font-mono text-xs">{{ tag.registerOffset }}</TableCell>
-                              <TableCell class="py-1.5"><Badge variant="outline" class="text-xs">{{ tag.dataType }}</Badge></TableCell>
-                              <TableCell class="py-1.5 font-mono text-xs">{{ tag.scale }}</TableCell>
-                              <TableCell class="py-1.5 font-mono text-sm text-blue-500">+{{ tag.plcOffset }}</TableCell>
-                              <TableCell class="py-1.5 text-right">
-                                <div class="flex gap-1 justify-end">
-                                  <Button variant="ghost" size="icon" class="h-6 w-6" @click="openEditTag(tag)">
-                                    <Pencil class="w-3 h-3" />
-                                  </Button>
-                                  <Button variant="ghost" size="icon" class="h-6 w-6 text-destructive" @click="deleteTag(tag)">
-                                    <Trash2 class="w-3 h-3" />
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          </TableBody>
-                        </Table>
-                        <div v-else class="text-center text-sm text-muted-foreground py-4 rounded-md border border-dashed">
-                          暂无标签映射，点击"添加"配置
-                        </div>
+            <div v-if="expandedDeviceId === device.id" class="border-t bg-muted/20 px-4 py-4">
+              <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+                <div class="text-sm text-muted-foreground">先定义高效批量读取块，再把测点映射到寄存器与 PLC 地址。</div>
+                <div class="flex gap-2">
+                  <Button variant="outline" size="sm" class="gap-1" @click="openAddGroup(device.id)"><Plus class="h-3.5 w-3.5" />采集块</Button>
+                  <Button variant="outline" size="sm" class="gap-1" :disabled="getGroups(device.id).length === 0" @click="openAddPoint(device.id)"><Plus class="h-3.5 w-3.5" />测点</Button>
+                </div>
+              </div>
+
+              <div v-if="getGroups(device.id).length === 0" class="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">当前设备还没有采集块，可手动新增或按模板重建。</div>
+              <div v-else class="space-y-4">
+                <div v-for="group in getGroups(device.id)" :key="group.id" class="rounded-lg border bg-background px-4 py-3">
+                  <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div class="font-medium">{{ group.name }}</div>
+                      <div class="mt-1 text-xs text-muted-foreground">FC {{ group.functionCode }} · 起始 {{ group.startRegister }} · 长度 {{ group.registerCount }} · 排序 {{ group.sortOrder }}</div>
+                    </div>
+                    <div class="flex gap-2">
+                      <Button variant="outline" size="sm" class="gap-1" @click="openAddPoint(device.id, group.id)"><Plus class="h-3.5 w-3.5" />测点</Button>
+                      <Button variant="ghost" size="icon" class="h-8 w-8" @click="openEditGroup(group)"><Pencil class="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" class="h-8 w-8 text-destructive" @click="deleteGroup(group)"><Trash2 class="h-4 w-4" /></Button>
+                    </div>
+                  </div>
+                  <div class="mt-3 space-y-2">
+                    <div v-for="point in getPointsByGroup(device.id, group.id)" :key="point.id" class="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm">
+                      <div class="min-w-0">
+                        <div class="font-medium">{{ point.displayName }}</div>
+                        <div class="text-xs text-muted-foreground">{{ point.pointKey }} · 寄存器 {{ point.registerAddress }} x {{ point.registerLength }} · {{ point.dataType }} · PLC {{ point.plcAddress || '-' }}</div>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                </template>
-
-                <TableRow v-if="devices.length === 0">
-                  <TableCell :colspan="11" class="h-24 text-center text-muted-foreground">
-                    暂无子设备，请先创建网关后再添加
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </TabsContent>
-    </Tabs>
-
-    <!-- ==================== 网关 Dialog ==================== -->
-    <Dialog v-model:open="showIntDialog">
-      <DialogContent class="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>{{ intDialogMode === 'add' ? '新建 TCP 网关' : '编辑 TCP 网关' }}</DialogTitle>
-          <DialogDescription>配置网关连接参数及对应的 PLC 地址块</DialogDescription>
-        </DialogHeader>
-        <div class="grid gap-4 py-4">
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label class="text-right">名称</Label>
-            <Input v-model="intForm.name" class="col-span-3" placeholder="如：1号网关" />
-          </div>
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label class="text-right">IP 地址</Label>
-            <Input v-model="intForm.ipAddress" class="col-span-3" placeholder="192.168.1.100" />
-          </div>
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label class="text-right">端口</Label>
-            <Input v-model.number="intForm.port" type="number" class="col-span-3" placeholder="502" />
-          </div>
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label class="text-right">PLC 起始地址</Label>
-            <Input v-model="intForm.plcBaseAddress" class="col-span-3" placeholder="如：D1000" />
-          </div>
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label class="text-right">地址块大小</Label>
-            <Input v-model.number="intForm.plcBlockSize" type="number" class="col-span-3" placeholder="如：100" min="1" />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" @click="showIntDialog = false">取消</Button>
-          <Button @click="saveIntegrator" :disabled="!intForm.name || !intForm.ipAddress || !intForm.plcBaseAddress || intSaving">
-            <Loader2 v-if="intSaving" class="w-4 h-4 mr-2 animate-spin" />
-            保存
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-
-    <!-- ==================== 设备 Dialog ==================== -->
-    <Dialog v-model:open="showDevDialog">
-      <DialogContent class="sm:max-w-[520px]">
-        <DialogHeader>
-          <DialogTitle>{{ devDialogMode === 'add' ? '新建子设备' : '编辑子设备' }}</DialogTitle>
-          <DialogDescription>配置 Modbus 设备和一次性读取参数</DialogDescription>
-        </DialogHeader>
-        <div class="grid gap-6 py-4 max-h-[70vh] overflow-y-auto pr-2 px-1">
-          <!-- 基本信息 -->
-          <div class="space-y-4">
-            <h4 class="text-sm font-medium leading-none flex items-center gap-2">
-              <Cpu class="w-4 h-4 text-blue-500" /> 基本信息
-            </h4>
-            <div class="grid grid-cols-2 gap-4">
-              <div class="space-y-2">
-                <Label for="name">设备名称</Label>
-                <Input id="name" v-model="devForm.name" placeholder="如：流量计 #1" />
-              </div>
-              <div class="space-y-2">
-                <Label for="integrator">所属网关</Label>
-                <Select v-model="devForm.integratorId">
-                  <SelectTrigger id="integrator">
-                    <SelectValue placeholder="选择网关" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem v-for="ig in integrators" :key="ig.id" :value="ig.id">
-                      {{ ig.name }}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div class="space-y-2">
-                <Label for="deviceType">设备类型</Label>
-                <Select v-model="devForm.deviceType">
-                  <SelectTrigger id="deviceType">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem v-for="dt in deviceTypeOptions" :key="dt.value" :value="dt.value">{{ dt.label }}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div class="space-y-2">
-                <Label for="slaveAddress">从站地址 (1-247)</Label>
-                <Input id="slaveAddress" v-model.number="devForm.slaveAddress" type="number" min="1" max="247" />
+                      <div class="flex gap-2">
+                        <Button variant="ghost" size="icon" class="h-8 w-8" @click="openEditPoint(point)"><Pencil class="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" class="h-8 w-8 text-destructive" @click="deletePoint(point)"><Trash2 class="h-4 w-4" /></Button>
+                      </div>
+                    </div>
+                    <div v-if="getPointsByGroup(device.id, group.id).length === 0" class="rounded-md border border-dashed px-3 py-4 text-center text-sm text-muted-foreground">这个采集块还没有测点。</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
+          <div v-if="devices.length === 0" class="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">暂无设备，请先新建网关。</div>
+        </CardContent>
+      </Card>
+    </div>
 
-          <!-- Modbus 读取参数 -->
-          <div class="space-y-4">
-            <h4 class="text-sm font-medium leading-none flex items-center gap-2">
-              <Settings2 class="w-4 h-4 text-blue-500" /> Modbus 读取参数
-            </h4>
-            <div class="grid grid-cols-2 gap-4 p-4 rounded-lg bg-muted/30 border border-muted">
-              <div class="space-y-2">
-                <Label for="readFunctionCode">功能码</Label>
-                <Select v-model="devForm.readFunctionCode">
-                  <SelectTrigger id="readFunctionCode">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem v-for="fc in readFunctionCodeOptions" :key="fc.value" :value="fc.value">
-                      {{ fc.label }}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div class="space-y-2">
-                <Label for="readStartRegister">起始寄存器地址</Label>
-                <Input id="readStartRegister" v-model.number="devForm.readStartRegister" type="number" min="0" />
-              </div>
-              <div class="space-y-2 col-span-2">
-                <Label for="readRegisterCount">读取寄存器数量</Label>
-                <Input id="readRegisterCount" v-model.number="devForm.readRegisterCount" type="number" min="1" />
-              </div>
-            </div>
-          </div>
-
-          <div class="flex items-center gap-2 px-1">
-            <button
-              type="button"
-              role="switch"
-              :aria-checked="devForm.isEnabled"
-              @click="devForm.isEnabled = !devForm.isEnabled"
-              class="inline-flex h-[1.15rem] w-8 shrink-0 items-center rounded-full border border-transparent shadow-xs transition-all outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              :class="devForm.isEnabled ? 'bg-primary' : 'bg-input'"
-            >
-              <span class="pointer-events-none block size-4 rounded-full bg-background transition-transform"
-                :class="devForm.isEnabled ? 'translate-x-[calc(100%-2px)]' : 'translate-x-0'"
-              />
-            </button>
-            <label class="cursor-pointer text-sm" @click="devForm.isEnabled = !devForm.isEnabled">启用该设备</label>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" @click="showDevDialog = false">取消</Button>
-          <Button @click="saveDevice" :disabled="!devForm.name || !devForm.integratorId || devSaving">
-            <Loader2 v-if="devSaving" class="w-4 h-4 mr-2 animate-spin" />
-            保存
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-
-    <!-- ==================== 标签映射 Dialog ==================== -->
-    <Dialog v-model:open="showTagDialog">
+    <Dialog v-model:open="showIntegratorDialog">
       <DialogContent class="sm:max-w-[460px]">
         <DialogHeader>
-          <DialogTitle>{{ tagDialogMode === 'add' ? '添加标签映射' : '编辑标签映射' }}</DialogTitle>
-          <DialogDescription>配置 Modbus 读取值到网关 PLC 数组偏移的映射</DialogDescription>
+          <DialogTitle>{{ integratorDialogMode === 'add' ? '新建网关' : '编辑网关' }}</DialogTitle>
+          <DialogDescription>这里只保留 TCP 通信参数。</DialogDescription>
         </DialogHeader>
         <div class="grid gap-4 py-4">
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label class="text-right">值名称</Label>
-            <Input v-model="tagForm.valueName" class="col-span-3" placeholder="如：FlowRate" />
-          </div>
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label class="text-right">寄存器偏移</Label>
-            <Input v-model.number="tagForm.registerOffset" type="number" class="col-span-3" min="0" />
-          </div>
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label class="text-right">数据类型</Label>
-            <Select v-model="tagForm.dataType" class="col-span-3">
-              <SelectTrigger class="col-span-3">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem v-for="dt in dataTypeOptions" :key="dt" :value="dt">{{ dt }}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label class="text-right">缩放系数</Label>
-            <Input v-model.number="tagForm.scale" type="number" step="0.01" class="col-span-3" />
-          </div>
-          <div class="grid grid-cols-4 items-center gap-4">
-            <Label class="text-right">PLC 偏移</Label>
-            <Input v-model.number="tagForm.plcOffset" type="number" class="col-span-3" min="0"
-              placeholder="在该网关 PLC 数组中的偏移量" />
-          </div>
+          <div class="grid grid-cols-4 items-center gap-4"><Label class="text-right">名称</Label><Input v-model="integratorForm.name" class="col-span-3" /></div>
+          <div class="grid grid-cols-4 items-center gap-4"><Label class="text-right">IP</Label><Input v-model="integratorForm.ipAddress" class="col-span-3" /></div>
+          <div class="grid grid-cols-4 items-center gap-4"><Label class="text-right">端口</Label><Input v-model.number="integratorForm.port" type="number" class="col-span-3" min="1" /></div>
         </div>
         <DialogFooter>
-          <Button variant="outline" @click="showTagDialog = false">取消</Button>
-          <Button @click="saveTag" :disabled="!tagForm.valueName || tagSaving">
-            <Loader2 v-if="tagSaving" class="w-4 h-4 mr-2 animate-spin" />
-            保存
-          </Button>
+          <Button variant="outline" @click="showIntegratorDialog = false">取消</Button>
+          <Button :disabled="!integratorForm.name || !integratorForm.ipAddress || integratorSaving" @click="saveIntegrator"><Loader2 v-if="integratorSaving" class="mr-2 h-4 w-4 animate-spin" />保存</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
 
-    <!-- ==================== 状态确认 Dialog ==================== -->
-    <AlertDialog :open="showConfirmDialog" @update:open="showConfirmDialog = $event">
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>确认操作</AlertDialogTitle>
-          <AlertDialogDescription>
-            确定要 {{ targetEnabled ? '启用' : '禁用' }} 设备「{{ pendingDevice?.name }}」吗？
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel @click="cancelToggle">取消</AlertDialogCancel>
-          <AlertDialogAction @click="confirmToggle">确认</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <Dialog v-model:open="showDeviceDialog">
+      <DialogContent class="sm:max-w-[560px]">
+        <DialogHeader>
+          <DialogTitle>{{ deviceDialogMode === 'add' ? '新建设备' : '编辑设备' }}</DialogTitle>
+          <DialogDescription>设备模板会自动带出默认采集块和测点。</DialogDescription>
+        </DialogHeader>
+        <div class="grid gap-4 py-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-2"><Label>设备名称</Label><Input v-model="deviceForm.name" /></div>
+            <div class="space-y-2">
+              <Label>所属网关</Label>
+              <Select v-model="deviceForm.integratorId"><SelectTrigger><SelectValue placeholder="选择网关" /></SelectTrigger><SelectContent><SelectItem v-for="item in integrators" :key="item.id" :value="item.id">{{ item.name }}</SelectItem></SelectContent></Select>
+            </div>
+            <div class="space-y-2">
+              <Label>设备类型</Label>
+              <Select v-model="deviceForm.deviceType"><SelectTrigger><SelectValue placeholder="选择类型" /></SelectTrigger><SelectContent><SelectItem v-for="type in deviceTypeOptions" :key="type" :value="type">{{ type }}</SelectItem></SelectContent></Select>
+            </div>
+            <div class="space-y-2">
+              <Label>模板</Label>
+              <Select v-model="deviceForm.templateKey" @update:model-value="value => applyTemplate(String(value))"><SelectTrigger><SelectValue placeholder="选择模板" /></SelectTrigger><SelectContent><SelectItem v-for="item in templateOptions" :key="item.key" :value="item.key">{{ item.deviceModel }}</SelectItem></SelectContent></Select>
+            </div>
+            <div class="space-y-2"><Label>设备型号</Label><Input v-model="deviceForm.deviceModel" /></div>
+            <div class="space-y-2"><Label>从站地址</Label><Input v-model.number="deviceForm.slaveAddress" type="number" min="1" max="247" /></div>
+            <div class="space-y-2"><Label>轮询间隔(ms)</Label><Input v-model.number="deviceForm.pollIntervalMs" type="number" min="100" step="100" /></div>
+          </div>
+          <div v-if="deviceForm.templateKey" class="rounded-lg border bg-muted/30 px-3 py-3 text-xs text-muted-foreground">{{ templates.find(item => item.key === deviceForm.templateKey)?.description ?? '模板会自动生成默认结构。' }}</div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="showDeviceDialog = false">取消</Button>
+          <Button :disabled="!deviceForm.name || !deviceForm.integratorId || deviceSaving" @click="saveDevice"><Loader2 v-if="deviceSaving" class="mr-2 h-4 w-4 animate-spin" />保存</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog v-model:open="showGroupDialog">
+      <DialogContent class="sm:max-w-[460px]">
+        <DialogHeader>
+          <DialogTitle>{{ groupDialogMode === 'add' ? '新增采集块' : '编辑采集块' }}</DialogTitle>
+          <DialogDescription>采集块描述一次高效批量读取的寄存器范围。</DialogDescription>
+        </DialogHeader>
+        <div class="grid gap-4 py-4">
+          <div class="grid grid-cols-4 items-center gap-4"><Label class="text-right">名称</Label><Input v-model="groupForm.name" class="col-span-3" /></div>
+          <div class="grid grid-cols-4 items-center gap-4"><Label class="text-right">功能码</Label><Select v-model="groupForm.functionCode"><SelectTrigger class="col-span-3"><SelectValue /></SelectTrigger><SelectContent><SelectItem v-for="item in functionCodeOptions" :key="item.value" :value="item.value">{{ item.label }}</SelectItem></SelectContent></Select></div>
+          <div class="grid grid-cols-4 items-center gap-4"><Label class="text-right">起始寄存器</Label><Input v-model.number="groupForm.startRegister" type="number" class="col-span-3" min="0" /></div>
+          <div class="grid grid-cols-4 items-center gap-4"><Label class="text-right">读取长度</Label><Input v-model.number="groupForm.registerCount" type="number" class="col-span-3" min="1" /></div>
+          <div class="grid grid-cols-4 items-center gap-4"><Label class="text-right">排序</Label><Input v-model.number="groupForm.sortOrder" type="number" class="col-span-3" min="1" /></div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="showGroupDialog = false">取消</Button>
+          <Button :disabled="!groupForm.name || groupSaving" @click="saveGroup"><Loader2 v-if="groupSaving" class="mr-2 h-4 w-4 animate-spin" />保存</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog v-model:open="showPointDialog">
+      <DialogContent class="sm:max-w-[620px]">
+        <DialogHeader>
+          <DialogTitle>{{ pointDialogMode === 'add' ? '新增测点' : '编辑测点' }}</DialogTitle>
+          <DialogDescription>测点描述寄存器解析规则，以及最终 PLC 目标地址。</DialogDescription>
+        </DialogHeader>
+        <div class="grid gap-4 py-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-2"><Label>显示名称</Label><Input v-model="pointForm.displayName" /></div>
+            <div class="space-y-2"><Label>Point Key</Label><Input v-model="pointForm.pointKey" /></div>
+            <div class="space-y-2">
+              <Label>所属采集块</Label>
+              <Select v-model="pointForm.readGroupId"><SelectTrigger><SelectValue placeholder="选择采集块" /></SelectTrigger><SelectContent><SelectItem v-for="item in getGroups(pointForm.deviceId)" :key="item.id" :value="item.id">{{ item.name }}</SelectItem></SelectContent></Select>
+            </div>
+            <div class="space-y-2"><Label>寄存器地址</Label><Input v-model.number="pointForm.registerAddress" type="number" min="0" /></div>
+            <div class="space-y-2"><Label>寄存器长度</Label><Input v-model.number="pointForm.registerLength" type="number" min="1" /></div>
+            <div class="space-y-2">
+              <Label>数据类型</Label>
+              <Select v-model="pointForm.dataType"><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem v-for="item in dataTypeOptions" :key="item" :value="item">{{ item }}</SelectItem></SelectContent></Select>
+            </div>
+            <div class="space-y-2"><Label>缩放</Label><Input v-model.number="pointForm.scale" type="number" step="0.001" /></div>
+            <div class="space-y-2"><Label>单位</Label><Input v-model="pointForm.unit" /></div>
+            <div class="space-y-2"><Label>PLC 地址</Label><Input v-model="pointForm.plcAddress" placeholder="例如 D1000" /></div>
+            <div class="space-y-2"><Label>排序</Label><Input v-model.number="pointForm.sortOrder" type="number" min="1" /></div>
+          </div>
+          <div class="space-y-2"><Label>备注</Label><Input v-model="pointForm.notes" placeholder="例如：来自刻线机 PLC 点位表" /></div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="showPointDialog = false">取消</Button>
+          <Button :disabled="!pointForm.displayName || !pointForm.readGroupId || pointSaving" @click="savePoint"><Loader2 v-if="pointSaving" class="mr-2 h-4 w-4 animate-spin" />保存</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>

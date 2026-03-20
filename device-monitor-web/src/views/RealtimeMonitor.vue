@@ -28,8 +28,6 @@ interface Integrator {
   name: string
   ipAddress: string
   port: number
-  plcBaseAddress: string
-  plcBlockSize: number
   isEnabled: boolean
 }
 
@@ -220,7 +218,7 @@ const statusSummary = computed(() => {
             :voltage="snapshot.values['voltage'] ?? snapshot.values['电压']"
             :current="snapshot.values['current'] ?? snapshot.values['电流']"
             :power="snapshot.values['power'] ?? snapshot.values['功率']"
-            :energy="snapshot.values['energy'] ?? snapshot.values['电能']"
+            :energy="snapshot.values['reactive_power'] ?? snapshot.values['power_factor'] ?? snapshot.values['energy'] ?? snapshot.values['电能']"
           />
           
           <!-- 风速仪卡片 -->
@@ -231,7 +229,7 @@ const statusSummary = computed(() => {
             :status="snapshot.status"
             :device-id="String(snapshot.deviceId)"
             :speed="snapshot.values['speed'] ?? snapshot.values['风速']"
-            :direction="snapshot.values['direction'] ?? snapshot.values['风向']"
+            :direction="snapshot.values['pressure_1'] ?? snapshot.values['direction'] ?? snapshot.values['风向']"
           />
           
           <!-- 空调卡片 -->
@@ -243,7 +241,7 @@ const statusSummary = computed(() => {
             :device-id="String(snapshot.deviceId)"
             :temperature="snapshot.values['temperature'] ?? snapshot.values['温度']"
             :setTemperature="snapshot.values['settemperature'] ?? snapshot.values['设定温度']"
-            :humidity="snapshot.values['humidity'] ?? snapshot.values['湿度']"
+            :humidity="snapshot.values['alarm_relay'] ?? snapshot.values['humidity'] ?? snapshot.values['湿度']"
           />
         </template>
       </div>

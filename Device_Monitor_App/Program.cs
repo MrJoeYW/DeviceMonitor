@@ -3,7 +3,6 @@ using Device_Monitor_App.DAO;
 using Device_Monitor_App.DAO.Interfaces;
 using Device_Monitor_App.Forms;
 using Device_Monitor_App.Infrastructure.Database;
-using Device_Monitor_App.Models;
 using Device_Monitor_App.Services;
 using Device_Monitor_App.Services.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,12 +17,11 @@ static class Program
     [STAThread]
     static void Main()
     {
-        // 初始化 NLog
-        var logger = LogManager.Setup()
+        var startupLogger = LogManager.Setup()
             .LoadConfigurationFromFile("nlog.config")
             .GetCurrentClassLogger();
 
-        logger.Info("============ 设备监控系统启动 ============");
+        startupLogger.Info("============ 设备监控系统启动 ============");
 
         try
         {
@@ -34,38 +32,35 @@ static class Program
 
             using var serviceProvider = services.BuildServiceProvider();
 
-            // 初始化数据库表
             var dbContext = serviceProvider.GetRequiredService<DatabaseContext>();
-            dbContext.EnsureTable<Integrator>();
-            dbContext.EnsureTable<Device>();
-            dbContext.EnsureTable<DeviceTagMapping>();
-            logger.Info("数据库初始化完成（Integrator / Device / DeviceTagMapping）");
+            var loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
+            var appLogger = loggerFactory.CreateLogger("Program");
 
-            // 启动主窗体
+            DatabaseBootstrapper.Initialize(dbContext, appLogger);
+            startupLogger.Info("数据库初始化完成（Integrator / Device / DeviceReadGroup / DevicePoint）");
+
             var mainForm = serviceProvider.GetRequiredService<FormMain>();
             Application.Run(mainForm);
         }
         catch (Exception ex)
         {
-            logger.Error(ex, "应用程序发生未处理异常，即将退出");
+            startupLogger.Error(ex, "应用程序发生未处理异常，即将退出");
             MessageBox.Show($"程序启动失败: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         finally
         {
-            logger.Info("============ 设备监控系统退出 ============");
+            startupLogger.Info("============ 设备监控系统退出 ============");
             LogManager.Shutdown();
         }
     }
 
     private static void ConfigureServices(IServiceCollection services)
     {
-        // 数据库
         var dbFolder = Path.Combine(AppContext.BaseDirectory, "data");
         Directory.CreateDirectory(dbFolder);
         var dbPath = Path.Combine(dbFolder, "device_monitor.db");
         services.AddSingleton(new DatabaseContext(dbPath));
 
-        // 日志
         services.AddLogging(logging =>
         {
             logging.ClearProviders();
@@ -73,23 +68,22 @@ static class Program
             logging.AddNLog();
         });
 
-        // DAO 层
         services.AddSingleton<IIntegratorDao, IntegratorDao>();
         services.AddSingleton<IDeviceDao, DeviceDao>();
-        services.AddSingleton<IDeviceTagMappingDao, DeviceTagMappingDao>();
+        services.AddSingleton<IDeviceReadGroupDao, DeviceReadGroupDao>();
+        services.AddSingleton<IDevicePointDao, DevicePointDao>();
 
-        // Service 层
         services.AddSingleton<IIntegratorService, IntegratorService>();
         services.AddSingleton<IDeviceService, DeviceService>();
-        services.AddSingleton<IDeviceTagMappingService, DeviceTagMappingService>();
+        services.AddSingleton<IDeviceReadGroupService, DeviceReadGroupService>();
+        services.AddSingleton<IDevicePointService, DevicePointService>();
         services.AddSingleton<ISnapshotService, SnapshotService>();
 
-        // Controller 层
         services.AddSingleton<IntegratorController>();
         services.AddSingleton<DeviceController>();
-        services.AddSingleton<DeviceTagMappingController>();
+        services.AddSingleton<DeviceReadGroupController>();
+        services.AddSingleton<DevicePointController>();
 
-        // 窗体
         services.AddTransient<FormMain>();
     }
 }

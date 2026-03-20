@@ -5,9 +5,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Device_Monitor_App.DAO;
 
-/// <summary>
-/// 设备 DAO 实现
-/// </summary>
 public class DeviceDao : IDeviceDao
 {
     private readonly DatabaseContext _db;
@@ -21,13 +18,14 @@ public class DeviceDao : IDeviceDao
 
     public IEnumerable<Device> GetAll()
     {
-        return _db.Connection.Table<Device>().ToList();
+        return _db.Connection.Table<Device>().OrderBy(device => device.Id).ToList();
     }
 
     public IEnumerable<Device> GetByIntegratorId(int integratorId)
     {
         return _db.Connection.Table<Device>()
-            .Where(d => d.IntegratorId == integratorId)
+            .Where(device => device.IntegratorId == integratorId)
+            .OrderBy(device => device.Id)
             .ToList();
     }
 
@@ -39,7 +37,7 @@ public class DeviceDao : IDeviceDao
     public int Insert(Device device)
     {
         _db.Connection.Insert(device);
-        _logger.LogInformation("新增设备: {Name}, ID={Id}, IntegratorId={IntId}", device.Name, device.Id, device.IntegratorId);
+        _logger.LogInformation("新增设备: {Name}, ID={Id}, IntegratorId={IntegratorId}", device.Name, device.Id, device.IntegratorId);
         return device.Id;
     }
 
@@ -60,9 +58,12 @@ public class DeviceDao : IDeviceDao
     public int DeleteByIntegratorId(int integratorId)
     {
         var devices = GetByIntegratorId(integratorId).ToList();
-        foreach (var d in devices)
-            _db.Connection.Delete<Device>(d.Id);
-        _logger.LogInformation("删除网关 {IntId} 下所有子设备, 共{Count}台", integratorId, devices.Count);
+        foreach (var device in devices)
+        {
+            _db.Connection.Delete<Device>(device.Id);
+        }
+
+        _logger.LogInformation("删除网关下全部设备, IntegratorId={IntegratorId}, Count={Count}", integratorId, devices.Count);
         return devices.Count;
     }
 }

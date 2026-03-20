@@ -1,7 +1,6 @@
 using Device_Monitor_App.Controllers;
 using Device_Monitor_App.Models;
 using Device_Monitor_App.Services;
-using Device_Monitor_App.Services.Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Web.WebView2.Core;
 using System.Text.Json;
@@ -9,34 +8,34 @@ using System.Text.Json.Nodes;
 
 namespace Device_Monitor_App.Forms;
 
-/// <summary>
-/// 主窗体：WebView2 宿主，通过构造函数注入依赖
-/// </summary>
 public partial class FormMain : Form
 {
     private readonly IntegratorController _integratorController;
     private readonly DeviceController _deviceController;
-    private readonly DeviceTagMappingController _tagMappingController;
+    private readonly DeviceReadGroupController _readGroupController;
+    private readonly DevicePointController _pointController;
     private readonly ISnapshotService _snapshotService;
     private readonly ILogger<FormMain> _logger;
 
-    private static readonly JsonSerializerOptions _jsonOpts = new()
+    private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = false,
-        PropertyNameCaseInsensitive = true // 增加容错性
+        PropertyNameCaseInsensitive = true
     };
 
     public FormMain(
         IntegratorController integratorController,
         DeviceController deviceController,
-        DeviceTagMappingController tagMappingController,
+        DeviceReadGroupController readGroupController,
+        DevicePointController pointController,
         ISnapshotService snapshotService,
         ILogger<FormMain> logger)
     {
         _integratorController = integratorController;
         _deviceController = deviceController;
-        _tagMappingController = tagMappingController;
+        _readGroupController = readGroupController;
+        _pointController = pointController;
         _snapshotService = snapshotService;
         _logger = logger;
         InitializeComponent();
@@ -45,19 +44,19 @@ public partial class FormMain : Form
     private async void FormMain_Load(object sender, EventArgs e)
     {
         _logger.LogInformation("主窗体加载，初始化 WebView2");
+
         try
         {
             await webView.EnsureCoreWebView2Async();
             webView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
 
 #if DEBUG
-            // 开发时加载 Vite 开发服务器
             webView.Source = new Uri("http://localhost:5173");
 #else
-            // 生产时加载打包后的 index.html
             var indexPath = Path.Combine(AppContext.BaseDirectory, "wwwroot", "index.html");
             webView.Source = new Uri(indexPath);
 #endif
+
             _logger.LogInformation("WebView2 初始化完成");
         }
         catch (Exception ex)
@@ -67,19 +66,14 @@ public partial class FormMain : Form
         }
     }
 
-    /// <summary>
-    /// 接收来自前端 JS 的消息并分发到对应 Controller 方法
-    /// 消息格式: { "action": "integrator:getAll", "reqId": "xxx", "payload": {} }
-    /// </summary>
     private void OnWebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
     {
         string? reqId = null;
+
         try
         {
             var raw = e.TryGetWebMessageAsString();
-            _logger.LogDebug("收到前端原始消息: {Msg}", raw);
-
-            var node = JsonNode.Parse(raw) ?? throw new InvalidOperationException("消息解析为 null");
+            var node = JsonNode.Parse(raw) ?? throw new InvalidOperationException("消息解析失败");
             var action = node["action"]?.GetValue<string>() ?? throw new InvalidOperationException("缺少 action 字段");
             reqId = node["reqId"]?.GetValue<string>() ?? string.Empty;
             var payload = node["payload"];
@@ -88,38 +82,28 @@ public partial class FormMain : Form
 
             object? result = action switch
             {
-                // ========== 集成设备 ==========
                 "integrator:getAll" => _integratorController.GetAll(),
+                "integrator:add" => _integratorController.Add(DeserializePayload<Integrator>(payload, "网关数据无效")),
+                "integrator:update" => _integratorController.Update(DeserializePayload<Integrator>(payload, "网关数据无效")),
+                "integrator:delete" => _integratorController.Delete(payload!["id"]!.GetValue<int>()),
 
-                "integrator:add" => HandleIntegratorAdd(payload),
-
-                "integrator:update" => HandleIntegratorUpdate(payload),
-
-                "integrator:delete" => _integratorController.Delete(
-                    payload!["id"]!.GetValue<int>()),
-
-                // ========== 子设备 ==========
                 "device:getAll" => _deviceController.GetAll(),
+                "device:getTemplates" => _deviceController.GetTemplates(),
+                "device:add" => _deviceController.Add(DeserializePayload<Device>(payload, "设备数据无效")),
+                "device:update" => _deviceController.Update(DeserializePayload<Device>(payload, "设备数据无效")),
+                "device:delete" => _deviceController.Delete(payload!["id"]!.GetValue<int>()),
+                "device:rebuildTemplate" => _deviceController.RebuildTemplate(payload!["id"]!.GetValue<int>()),
 
-                "device:add" => HandleDeviceAdd(payload),
+                "readGroup:getByDeviceId" => _readGroupController.GetByDeviceId(payload!["deviceId"]!.GetValue<int>()),
+                "readGroup:add" => _readGroupController.Add(DeserializePayload<DeviceReadGroup>(payload, "采集块数据无效")),
+                "readGroup:update" => _readGroupController.Update(DeserializePayload<DeviceReadGroup>(payload, "采集块数据无效")),
+                "readGroup:delete" => _readGroupController.Delete(payload!["id"]!.GetValue<int>()),
 
-                "device:update" => HandleDeviceUpdate(payload),
+                "point:getByDeviceId" => _pointController.GetByDeviceId(payload!["deviceId"]!.GetValue<int>()),
+                "point:add" => _pointController.Add(DeserializePayload<DevicePoint>(payload, "测点数据无效")),
+                "point:update" => _pointController.Update(DeserializePayload<DevicePoint>(payload, "测点数据无效")),
+                "point:delete" => _pointController.Delete(payload!["id"]!.GetValue<int>()),
 
-                "device:delete" => _deviceController.Delete(
-                    payload!["id"]!.GetValue<int>()),
-
-                // ========== 标签映射 ==========
-                "tag:getByDeviceId" => _tagMappingController.GetByDeviceId(
-                    payload!["deviceId"]!.GetValue<int>()),
-
-                "tag:add" => HandleTagAdd(payload),
-
-                "tag:update" => HandleTagUpdate(payload),
-
-                "tag:delete" => _tagMappingController.Delete(
-                    payload!["id"]!.GetValue<int>()),
-
-                // ========== 实时数据快照 ==========
                 "snapshot:getAll" => _snapshotService.GetAllSnapshots(),
 
                 _ => throw new NotSupportedException($"未知 action: {action}")
@@ -129,64 +113,16 @@ public partial class FormMain : Form
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "处理前端消息异常: {Msg}", ex.Message);
+            _logger.LogError(ex, "处理前端消息异常");
             Reply(reqId ?? string.Empty, false, null, ex.Message);
         }
     }
 
-    // ---------- 集成设备辅助 ----------
-
-    private int HandleIntegratorAdd(JsonNode? payload)
+    private static T DeserializePayload<T>(JsonNode? payload, string errorMessage) where T : class
     {
-        var obj = payload.Deserialize<Integrator>(_jsonOpts)
-                  ?? throw new ArgumentException("集成设备数据无效");
-        return _integratorController.Add(obj.Name, obj.IpAddress, obj.Port, obj.PlcBaseAddress, obj.PlcBlockSize);
+        var value = payload?.Deserialize<T>(JsonOptions);
+        return value ?? throw new ArgumentException(errorMessage);
     }
-
-    private bool HandleIntegratorUpdate(JsonNode? payload)
-    {
-        var obj = payload.Deserialize<Integrator>(_jsonOpts)
-                  ?? throw new ArgumentException("集成设备数据无效");
-        return _integratorController.Update(obj);
-    }
-
-    // ---------- 子设备辅助 ----------
-
-    private int HandleDeviceAdd(JsonNode? payload)
-    {
-        _logger.LogInformation("新增子设备原始 Payload: {Payload}", payload?.ToJsonString());
-        var obj = payload.Deserialize<Device>(_jsonOpts)
-                  ?? throw new ArgumentException("子设备数据无效");
-        _logger.LogInformation("新增子设备反序列化结果: Name={Name}, IsEnabled={Enabled}", obj.Name, obj.IsEnabled);
-        return _deviceController.Add(obj);
-    }
-
-    private bool HandleDeviceUpdate(JsonNode? payload)
-    {
-        _logger.LogInformation("更新子设备原始 Payload: {Payload}", payload?.ToJsonString());
-        var obj = payload.Deserialize<Device>(_jsonOpts)
-                  ?? throw new ArgumentException("子设备数据无效");
-        _logger.LogInformation("更新子设备反序列化结果: ID={Id}, Name={Name}, IsEnabled={Enabled}", obj.Id, obj.Name, obj.IsEnabled);
-        return _deviceController.Update(obj);
-    }
-
-    // ---------- 标签映射辅助 ----------
-
-    private int HandleTagAdd(JsonNode? payload)
-    {
-        var obj = payload.Deserialize<DeviceTagMapping>(_jsonOpts)
-                  ?? throw new ArgumentException("标签映射数据无效");
-        return _tagMappingController.Add(obj);
-    }
-
-    private bool HandleTagUpdate(JsonNode? payload)
-    {
-        var obj = payload.Deserialize<DeviceTagMapping>(_jsonOpts)
-                  ?? throw new ArgumentException("标签映射数据无效");
-        return _tagMappingController.Update(obj);
-    }
-
-    // ---------- 响应工具 ----------
 
     private void Reply(string reqId, bool ok, object? data, string? error = null)
     {
@@ -197,25 +133,29 @@ public partial class FormMain : Form
             data,
             error
         };
-        var json = JsonSerializer.Serialize(response, _jsonOpts);
-        _logger.LogDebug("<<< 回复前端: {Json}", json);
 
-        // PostWebMessageAsString 必须在 UI 线程调用
+        var json = JsonSerializer.Serialize(response, JsonOptions);
+
         if (InvokeRequired)
+        {
             Invoke(() => webView.CoreWebView2?.PostWebMessageAsString(json));
+        }
         else
+        {
             webView.CoreWebView2?.PostWebMessageAsString(json);
+        }
     }
 
-    /// <summary>
-    /// 主动向前端推送 JSON 消息（无需 reqId）
-    /// </summary>
     public void PostMessageToFront(object payload)
     {
-        var json = JsonSerializer.Serialize(payload, _jsonOpts);
+        var json = JsonSerializer.Serialize(payload, JsonOptions);
         if (InvokeRequired)
+        {
             Invoke(() => webView.CoreWebView2?.PostWebMessageAsString(json));
+        }
         else
+        {
             webView.CoreWebView2?.PostWebMessageAsString(json);
+        }
     }
 }

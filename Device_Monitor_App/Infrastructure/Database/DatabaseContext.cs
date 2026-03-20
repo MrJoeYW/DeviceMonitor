@@ -3,7 +3,7 @@ using SQLite;
 namespace Device_Monitor_App.Infrastructure.Database;
 
 /// <summary>
-/// SQLite 数据库上下文，管理连接生命周期（Singleton）
+/// SQLite 数据库上下文，负责管理连接生命周期。
 /// </summary>
 public class DatabaseContext : IDisposable
 {
@@ -15,10 +15,13 @@ public class DatabaseContext : IDisposable
         _connection = new SQLiteConnection(dbPath);
     }
 
+    /// <summary>
+    /// 当前数据库连接实例。
+    /// </summary>
     public SQLiteConnection Connection => _connection;
 
     /// <summary>
-    /// 注册并自动建表
+    /// 确保指定实体对应的数据表已创建。
     /// </summary>
     public void EnsureTable<T>() where T : new()
     {
@@ -33,6 +36,7 @@ public class DatabaseContext : IDisposable
             _connection.Dispose();
             _disposed = true;
         }
+
         GC.SuppressFinalize(this);
     }
 }

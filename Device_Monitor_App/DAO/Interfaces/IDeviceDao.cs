@@ -2,9 +2,6 @@ using Device_Monitor_App.Models;
 
 namespace Device_Monitor_App.DAO.Interfaces;
 
-/// <summary>
-/// 设备 DAO 接口
-/// </summary>
 public interface IDeviceDao
 {
     IEnumerable<Device> GetAll();
